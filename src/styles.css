@@ -384,7 +384,8 @@ h2 {
 }
 
 .selected-current-button > span:last-child,
-.tension-burst-button > span {
+.tension-burst-button > span,
+.sell-selected-button > span {
   color: #f8edd0;
   font-size: 0.66rem;
   font-weight: 900;
@@ -433,6 +434,16 @@ h2 {
 
 .selected-action-field.disabled {
   opacity: 0.5;
+}
+
+.selected-quick .sell-selected-button {
+  grid-template-columns: 20px auto;
+  gap: 4px;
+  min-width: 74px;
+  padding: 0 8px;
+  border-color: rgba(229, 104, 95, 0.5);
+  background: rgba(78, 14, 18, 0.58);
+  color: #ffd8d5;
 }
 
 .selected-quick .tension-burst-button {
@@ -726,6 +737,7 @@ h2 {
 #auto-move-select,
 #wave-limit-select,
 #map-edit-button,
+#map-overview-button,
 .map-scroll-row button,
 .map-editor-panel button,
 .map-editor-panel select,
@@ -913,6 +925,77 @@ h2 {
 
 .map-editor-panel[hidden] {
   display: none;
+}
+
+.map-overview-panel {
+  display: grid;
+  max-height: 420px;
+  gap: 8px;
+  overflow: auto;
+  padding-right: 2px;
+}
+
+.map-overview-panel[hidden] {
+  display: none;
+}
+
+.map-overview-card {
+  display: grid;
+  grid-template-columns: 92px minmax(0, 1fr);
+  gap: 9px;
+  align-items: stretch;
+  min-width: 0;
+  padding: 7px;
+  border: 1px solid rgba(247, 215, 143, 0.24);
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.06);
+  color: #f8edd0;
+  cursor: pointer;
+  text-align: left;
+}
+
+.map-overview-card.active,
+#map-overview-button.active {
+  border-color: rgba(142, 216, 255, 0.76);
+  background: rgba(142, 216, 255, 0.14);
+}
+
+.map-overview-image {
+  min-height: 58px;
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  border-radius: 6px;
+  background-image: var(--map-preview);
+  background-position: center;
+  background-size: cover;
+}
+
+.map-overview-body {
+  display: grid;
+  gap: 3px;
+  min-width: 0;
+  align-content: center;
+}
+
+.map-overview-body strong {
+  overflow: hidden;
+  color: #fff9ea;
+  font-size: 0.82rem;
+  line-height: 1.08;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.map-overview-body span,
+.map-overview-body small {
+  color: #cbd5df;
+  font-size: 0.68rem;
+  line-height: 1.2;
+}
+
+.map-overview-body small {
+  color: #9edcff;
+  font-weight: 900;
+  text-transform: uppercase;
 }
 
 .editor-actions {
@@ -1236,12 +1319,27 @@ h2 {
 
 .settings-menu #guide-button,
 .settings-menu #audio-button,
+.settings-menu #abandon-battle-button,
 .settings-menu #restart-button {
   width: 100%;
   min-height: 38px;
   padding: 0 12px;
   border-radius: 8px;
   text-align: left;
+}
+
+#abandon-battle-button {
+  border: 1px solid rgba(229, 104, 95, 0.5);
+  background: rgba(78, 14, 18, 0.58);
+  color: #ffd8d5;
+  cursor: pointer;
+  font-size: 0.84rem;
+  font-weight: 900;
+}
+
+#abandon-battle-button:disabled {
+  cursor: not-allowed;
+  opacity: 0.48;
 }
 
 .settings-field {
@@ -3733,13 +3831,16 @@ h2 {
   #auto-move-select,
   #wave-limit-select,
   #map-edit-button,
+  #map-overview-button,
   .map-scroll-row button,
   .map-editor-panel button,
   .map-editor-panel select,
   #add-editor-tower-button,
   #tower-range-button,
+  #sell-selected-button,
   #guide-button,
   #audio-button,
+  #abandon-battle-button,
   #restart-button,
   #menu-map-select,
   #menu-difficulty-select,

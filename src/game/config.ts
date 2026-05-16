@@ -406,17 +406,17 @@ export type DifficultyMode = keyof typeof DIFFICULTY_MODES;
 export const HOST_TYPES = {
   host: {
     name: "Angel Host",
-    role: "Balanced squad",
+    role: "Melee sword squad",
     cost: 75,
-    description: "Balanced defenders with steady holy ranged fire.",
+    description: "Sword-bearing defenders who hold close choke points and cut down nearby demons.",
     speed: 118,
-    attackRange: 176,
-    engagementRange: 232,
+    attackRange: 74,
+    engagementRange: 122,
     attackCooldownMs: 760,
     memberCount: 5,
     memberHp: 185,
     memberMp: 70,
-    damagePerMember: 13,
+    damagePerMember: 16,
     healPerMember: 0,
     defense: 1,
     tint: 0xffffff,
@@ -596,7 +596,7 @@ export type HostKind = keyof typeof HOST_TYPES;
 export const ENEMY_TYPES = {
   corruptedScout: {
     name: "Corrupted Scout",
-    texture: "/assets/sprites/enemies/corrupted-scout.png",
+    texture: "/assets/sprites/enemies/animated/corrupted-scout/walk.png",
     hp: 44,
     speed: 92,
     gateDamagePerSecond: 13,
@@ -604,6 +604,7 @@ export const ENEMY_TYPES = {
     scale: 0.14,
     walkAnimation: {
       cycleMs: 520,
+      frames: 8,
       bobPx: 10,
       swayDeg: 7,
       scaleX: 0.07,
@@ -613,7 +614,7 @@ export const ENEMY_TYPES = {
   },
   fallenSwordsman: {
     name: "Fallen Swordsman",
-    texture: "/assets/sprites/enemies/fallen-swordsman.png",
+    texture: "/assets/sprites/enemies/animated/fallen-swordsman/walk.png",
     hp: 74,
     speed: 58,
     gateDamagePerSecond: 22,
@@ -621,6 +622,7 @@ export const ENEMY_TYPES = {
     scale: 0.14,
     walkAnimation: {
       cycleMs: 760,
+      frames: 8,
       bobPx: 6,
       swayDeg: 4,
       scaleX: 0.035,
@@ -630,7 +632,7 @@ export const ENEMY_TYPES = {
   },
   siegeBrute: {
     name: "Siege Brute",
-    texture: "/assets/sprites/enemies/siege-brute.png",
+    texture: "/assets/sprites/enemies/animated/siege-brute/walk.png",
     hp: 145,
     speed: 36,
     gateDamagePerSecond: 38,
@@ -638,6 +640,7 @@ export const ENEMY_TYPES = {
     scale: 0.16,
     walkAnimation: {
       cycleMs: 980,
+      frames: 8,
       bobPx: 4,
       swayDeg: 2,
       scaleX: 0.025,
@@ -647,7 +650,7 @@ export const ENEMY_TYPES = {
   },
   shadowCaster: {
     name: "Shadow Caster",
-    texture: "/assets/sprites/enemies/shadow-caster.png",
+    texture: "/assets/sprites/enemies/animated/shadow-caster/walk.png",
     hp: 82,
     speed: 48,
     gateDamagePerSecond: 18,
@@ -663,6 +666,7 @@ export const ENEMY_TYPES = {
     },
     walkAnimation: {
       cycleMs: 1200,
+      frames: 8,
       bobPx: 12,
       swayDeg: 2,
       scaleX: 0.018,
@@ -672,7 +676,7 @@ export const ENEMY_TYPES = {
   },
   flyingHarrier: {
     name: "Flying Harrier",
-    texture: "/assets/sprites/enemies/flying-harrier.png",
+    texture: "/assets/sprites/enemies/animated/flying-harrier/walk.png",
     hp: 58,
     speed: 78,
     gateDamagePerSecond: 18,
@@ -680,6 +684,7 @@ export const ENEMY_TYPES = {
     scale: 0.15,
     walkAnimation: {
       cycleMs: 440,
+      frames: 8,
       bobPx: 18,
       swayDeg: 9,
       scaleX: 0.06,
@@ -689,7 +694,7 @@ export const ENEMY_TYPES = {
   },
   darkArchangel: {
     name: "Dark Archangel",
-    texture: "/assets/sprites/enemies/dark-archangel.png",
+    texture: "/assets/sprites/enemies/animated/dark-archangel/walk.png",
     hp: 260,
     speed: 34,
     gateDamagePerSecond: 52,
@@ -704,6 +709,7 @@ export const ENEMY_TYPES = {
     },
     walkAnimation: {
       cycleMs: 1400,
+      frames: 8,
       bobPx: 5,
       swayDeg: 1.7,
       scaleX: 0.018,
@@ -713,7 +719,7 @@ export const ENEMY_TYPES = {
   },
   obsidianBulwark: {
     name: "Obsidian Bulwark",
-    texture: "/assets/sprites/enemies/siege-brute.png",
+    texture: "/assets/sprites/enemies/animated/siege-brute/walk.png",
     hp: 255,
     speed: 27,
     gateDamagePerSecond: 62,
@@ -721,6 +727,7 @@ export const ENEMY_TYPES = {
     scale: 0.19,
     walkAnimation: {
       cycleMs: 1240,
+      frames: 8,
       bobPx: 3,
       swayDeg: 1.4,
       scaleX: 0.016,
@@ -730,7 +737,7 @@ export const ENEMY_TYPES = {
   },
   voidSeraph: {
     name: "Void Seraph",
-    texture: "/assets/sprites/enemies/flying-harrier.png",
+    texture: "/assets/sprites/enemies/animated/flying-harrier/walk.png",
     hp: 142,
     speed: 91,
     gateDamagePerSecond: 31,
@@ -745,6 +752,7 @@ export const ENEMY_TYPES = {
     },
     walkAnimation: {
       cycleMs: 390,
+      frames: 8,
       bobPx: 22,
       swayDeg: 10,
       scaleX: 0.07,
@@ -754,7 +762,7 @@ export const ENEMY_TYPES = {
   },
   abyssalHierophant: {
     name: "Abyssal Hierophant",
-    texture: "/assets/sprites/enemies/dark-archangel.png",
+    texture: "/assets/sprites/enemies/animated/dark-archangel/walk.png",
     hp: 420,
     speed: 25,
     gateDamagePerSecond: 78,
@@ -769,6 +777,7 @@ export const ENEMY_TYPES = {
     },
     walkAnimation: {
       cycleMs: 1620,
+      frames: 8,
       bobPx: 4,
       swayDeg: 1.2,
       scaleX: 0.012,
@@ -1216,11 +1225,11 @@ export const INITIAL_UNIT = {
   x: 430,
   y: 476,
   speed: 118,
-  attackRange: 176,
-  engagementRange: 232,
+  attackRange: 74,
+  engagementRange: 122,
   attackCooldownMs: 760,
   memberCount: 5,
   memberHp: 185,
   memberMp: 70,
-  damagePerMember: 13,
+  damagePerMember: 16,
 };

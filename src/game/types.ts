@@ -58,6 +58,8 @@ export type HudRefs = {
   scrollUpButton: HTMLButtonElement | null;
   scrollDownButton: HTMLButtonElement | null;
   mapEditButton: HTMLButtonElement | null;
+  mapOverviewButton: HTMLButtonElement | null;
+  mapOverviewPanel: HTMLElement | null;
   mapEditorPanel: HTMLElement | null;
   mapEditTool: HTMLSelectElement | null;
   mapEditTowerKind: HTMLSelectElement | null;
@@ -262,5 +264,7 @@ export type Shockwave = {
   ageMs: number;
   durationMs: number;
   color: number;
+  style?: "ring" | "slash";
+  facingX?: number;
   graphic: Graphics;
 };

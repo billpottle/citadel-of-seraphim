@@ -341,6 +341,9 @@ const isFinitePoint = (point: Point) => Number.isFinite(point.x) && Number.isFin
 const clamp = (value: number, min: number, max: number) => Math.max(min, Math.min(max, value));
 const distance = (a: Point, b: Point) => Math.hypot(a.x - b.x, a.y - b.y);
 const colorToCss = (color: number) => `#${color.toString(16).padStart(6, "0")}`;
+const CAMERA_MIN_ZOOM = 0.78;
+const CAMERA_MAX_ZOOM = 1.48;
+const CAMERA_OVERSCROLL_RATIO = 0.32;
 const FACE_THRESHOLD = 5;
 const facingToward = (from: Point, to: Point | null | undefined, fallback: number) => {
   if (!to || Math.abs(to.x - from.x) < FACE_THRESHOLD) {
@@ -466,6 +469,12 @@ type MinimapMetrics = {
   panelY: number;
   panelWidth: number;
   panelHeight: number;
+};
+type CameraGestureState = {
+  pointerIds: [number, number];
+  startDistance: number;
+  startZoom: number;
+  startAnchorWorld: Point;
 };
 
 const combatTargetPoint = (target: DemonTarget | AngelTarget): Point => {
@@ -616,7 +625,7 @@ export class CitadelGame {
   private textures!: {
     maps: Record<MapId, Texture>;
     angel: Record<HostSpriteKey, Record<AnimationKey, Texture[]>>;
-    enemy: Record<EnemyKind, Texture>;
+    enemy: Record<EnemyKind, Texture[]>;
     tower: Record<TowerKind, Texture>;
     ui: {
       gateHpGauge: Texture;
@@ -662,6 +671,9 @@ export class CitadelGame {
   private editorDragTarget: EditorDragTarget | null = null;
   private cameraX = 0;
   private cameraY = 0;
+  private cameraZoom = 1;
+  private readonly cameraPointers = new Map<number, Point>();
+  private cameraGesture: CameraGestureState | null = null;
   private selectedPathRouteIndex = 0;
   private selectedPathIndex = 0;
   private selectedSlotIndex = 0;
@@ -727,6 +739,7 @@ export class CitadelGame {
       selectedCurrentButton: document.querySelector("#selected-current-button"),
       selectedCurrentIcon: document.querySelector("#selected-current-icon"),
       selectedCurrentLabel: document.querySelector("#selected-current-label"),
+      sellSelectedButton: document.querySelector("#sell-selected-button"),
       selectedMoveField: document.querySelector("#selected-move-field"),
       tensionBurstButton: document.querySelector("#tension-burst-button"),
       towerRangeButton: document.querySelector("#tower-range-button"),
@@ -736,6 +749,8 @@ export class CitadelGame {
       scrollUpButton: document.querySelector("#scroll-up-button"),
       scrollDownButton: document.querySelector("#scroll-down-button"),
       mapEditButton: document.querySelector("#map-edit-button"),
+      mapOverviewButton: document.querySelector("#map-overview-button"),
+      mapOverviewPanel: document.querySelector("#map-overview-panel"),
       mapEditorPanel: document.querySelector("#map-editor-panel"),
       mapEditTool: document.querySelector("#map-edit-tool"),
       mapEditTowerKind: document.querySelector("#map-edit-tower-kind"),
@@ -747,6 +762,7 @@ export class CitadelGame {
       resetMapButton: document.querySelector("#reset-map-button"),
       guideButton: document.querySelector("#guide-button"),
       audioButton: document.querySelector("#audio-button"),
+      abandonBattleButton: document.querySelector("#abandon-battle-button"),
       restartButton: document.querySelector("#restart-button"),
       settingsToggleButton: document.querySelector("#settings-toggle-button"),
       settingsMenu: document.querySelector("#settings-menu"),
@@ -812,7 +828,8 @@ export class CitadelGame {
     );
     const enemyTextures = await Promise.all(
       Object.entries(ENEMY_TYPES).map(async ([key, enemy]) => {
-        return [key, await Assets.load<Texture>(enemy.texture)] as const;
+        const texture = await Assets.load<Texture>(enemy.texture);
+        return [key, this.sliceAnimationTexture(texture, enemy.walkAnimation)] as const;
       }),
     );
     const towerTextures = await Promise.all(
@@ -830,7 +847,7 @@ export class CitadelGame {
     this.textures = {
       maps: Object.fromEntries(mapTextures) as Record<MapId, Texture>,
       angel: Object.fromEntries(angelTextures) as Record<HostSpriteKey, Record<AnimationKey, Texture[]>>,
-      enemy: Object.fromEntries(enemyTextures) as Record<EnemyKind, Texture>,
+      enemy: Object.fromEntries(enemyTextures) as Record<EnemyKind, Texture[]>,
       tower: Object.fromEntries(towerTextures) as Record<TowerKind, Texture>,
       ui: {
         gateHpGauge,
@@ -900,6 +917,11 @@ export class CitadelGame {
       event.stopPropagation();
       this.releaseSelectedTensionBurst();
     });
+    this.hud.sellSelectedButton?.addEventListener("click", (event) => {
+      event.preventDefault();
+      event.stopPropagation();
+      this.sellSelectedCombatant();
+    });
     this.hud.towerRangeButton?.addEventListener("click", (event) => {
       event.preventDefault();
       event.stopPropagation();
@@ -908,6 +930,10 @@ export class CitadelGame {
     this.hud.audioButton?.addEventListener("click", (event) => {
       event.preventDefault();
       void this.audio.toggle().then(() => this.updateAudioButton());
+    });
+    this.hud.abandonBattleButton?.addEventListener("click", (event) => {
+      event.preventDefault();
+      this.abandonBattle();
     });
     this.hud.autoMoveSelect?.addEventListener("change", () => this.setSelectedUnitAutoMove());
     this.hud.guideButton?.addEventListener("click", (event) => {
@@ -995,8 +1021,7 @@ export class CitadelGame {
       this.activeMapId = selected;
       this.activeCampaignLevelIndex = this.findCampaignLevelIndexForMap(selected);
       this.map = this.loadMapLayout(selected);
-      this.cameraX = 0;
-      this.cameraY = 0;
+      this.resetCamera();
       this.selectedPathGroup = "lane";
       this.selectedPathRouteIndex = 0;
       this.selectedPathIndex = 0;
@@ -1008,6 +1033,10 @@ export class CitadelGame {
     this.hud.mapEditButton?.addEventListener("click", (event) => {
       event.preventDefault();
       this.toggleMapEditMode();
+    });
+    this.hud.mapOverviewButton?.addEventListener("click", (event) => {
+      event.preventDefault();
+      this.toggleMapOverviewPanel();
     });
     this.hud.scrollLeftButton?.addEventListener("click", (event) => {
       event.preventDefault();
@@ -1637,8 +1666,7 @@ export class CitadelGame {
     const level = this.setActiveCampaignLevel(index);
     this.pendingContinueMapId = level.mapId;
     this.pendingContinueLevelIndex = level.index;
-    this.cameraX = 0;
-    this.cameraY = 0;
+    this.resetCamera();
     this.updateBattleSettingsControls();
     this.renderCampaignMapPanel();
     this.setStatus(`${level.title} selected`, 1100);
@@ -2806,8 +2834,7 @@ export class CitadelGame {
     this.ensureActiveMapUnlocked();
     this.normalizeSelectionsForUnlocks();
     this.map = this.loadMapLayout(this.activeMapId);
-    this.cameraX = 0;
-    this.cameraY = 0;
+    this.resetCamera();
     this.selectedPathGroup = "lane";
     this.selectedPathRouteIndex = 0;
     this.selectedPathIndex = 0;
@@ -3557,6 +3584,22 @@ export class CitadelGame {
     const frameIndex = Math.floor((animationTimeMs + phaseOffsetMs) / animation.frameMs);
     const clampedIndex = animation.loop ? frameIndex % frames.length : Math.min(frames.length - 1, frameIndex);
     return frames[clampedIndex] ?? frames[0];
+  }
+
+  private hostPoseDurationMs(kind: string, pose: AnimationKey) {
+    const animation = this.hostAnimation(kind).animations[pose];
+    return animation.frames * animation.frameMs;
+  }
+
+  private enemyTexture(kind: EnemyKind, animationTimeMs: number) {
+    const frames = this.textures.enemy[kind];
+    if (!frames || frames.length === 0) {
+      return Texture.EMPTY;
+    }
+    const animation = ENEMY_TYPES[kind].walkAnimation;
+    const frameMs = animation.cycleMs / Math.max(1, frames.length);
+    const frameIndex = Math.floor(animationTimeMs / frameMs) % frames.length;
+    return frames[frameIndex] ?? frames[0];
   }
 
   private isSpecialHostKind(kind: HostKind) {
@@ -4735,6 +4778,23 @@ export class CitadelGame {
     }
   }
 
+  private abandonBattle() {
+    if (this.menuOpen || this.battleState !== "playing") {
+      return;
+    }
+
+    this.pendingContinueMapId = this.activeMapId;
+    this.pendingContinueLevelIndex = this.activeCampaignLevelIndex;
+    this.isPaused = false;
+    this.purifyMode = false;
+    this.closeSettingsMenu();
+    this.closeBuildOverlay();
+    this.closeSelectedOverlay();
+    this.showCampaignHub("Battle abandoned. Choose a level when you are ready to try again.");
+    this.setStatus("Battle abandoned", 1400);
+    this.updateHud();
+  }
+
   private openBuildOverlay() {
     if (this.hud.buildOverlay) {
       this.hud.buildOverlay.hidden = false;
@@ -4757,6 +4817,88 @@ export class CitadelGame {
     if (this.hud.selectedOverlay) {
       this.hud.selectedOverlay.hidden = true;
     }
+    this.updateHud();
+  }
+
+  private toggleMapOverviewPanel() {
+    if (!this.devMapAuthoring || !this.hud.mapOverviewPanel) {
+      return;
+    }
+
+    const willOpen = this.hud.mapOverviewPanel.hidden;
+    this.hud.mapOverviewPanel.hidden = !willOpen;
+    this.hud.mapOverviewButton?.classList.toggle("active", willOpen);
+    if (willOpen) {
+      this.renderMapOverviewPanel();
+    }
+  }
+
+  private renderMapOverviewPanel() {
+    const panel = this.hud.mapOverviewPanel;
+    if (!panel) {
+      return;
+    }
+
+    panel.replaceChildren();
+    const storedLayouts = this.loadStoredMapLayoutOverrides();
+    for (const id of MAP_ORDER) {
+      const source = MAPS[id];
+      const current = id === this.activeMapId ? this.map : this.loadMapLayout(id);
+      const card = document.createElement("button");
+      card.type = "button";
+      card.className = "map-overview-card";
+      card.classList.toggle("active", id === this.activeMapId);
+      card.style.setProperty("--map-preview", `url("${source.background}")`);
+      card.addEventListener("click", () => this.openMapOverviewEditor(id));
+
+      const image = document.createElement("span");
+      image.className = "map-overview-image";
+      image.setAttribute("aria-hidden", "true");
+
+      const body = document.createElement("span");
+      body.className = "map-overview-body";
+      const title = document.createElement("strong");
+      title.textContent = source.name;
+      const detail = document.createElement("span");
+      detail.textContent = `${source.width} x ${source.height} - ${current.paths.length} lanes - ${current.towerSlots.length} bases`;
+      const state = document.createElement("small");
+      state.textContent = id === this.activeMapId ? "Current map" : storedLayouts[id] ? "Local edits saved" : "Source layout";
+      body.append(title, detail, state);
+      card.append(image, body);
+      panel.appendChild(card);
+    }
+  }
+
+  private openMapOverviewEditor(id: MapId) {
+    if (!this.devMapAuthoring) {
+      return;
+    }
+
+    this.activeMapId = id;
+    this.activeCampaignLevelIndex = this.findCampaignLevelIndexForMap(id);
+    this.map = this.loadMapLayout(id);
+    this.resetCamera();
+    this.selectedPathGroup = "lane";
+    this.selectedPathRouteIndex = 0;
+    this.selectedPathIndex = 0;
+    this.selectedSlotIndex = 0;
+    this.mapEditMode = true;
+    this.editorDragTarget = null;
+    this.menuOpen = false;
+    this.purifyMode = false;
+    this.pendingContinueMapId = null;
+    this.pendingContinueLevelIndex = null;
+    this.hud.menuOverlay && (this.hud.menuOverlay.hidden = true);
+    this.hud.victoryOverlay && (this.hud.victoryOverlay.hidden = true);
+    this.hud.armoryOverlay && (this.hud.armoryOverlay.hidden = true);
+    this.saveGameSettings();
+    this.restart();
+    this.mapEditMode = true;
+    this.renderEditorOverlay();
+    this.updateMapEditorControls();
+    this.updateBattleSettingsControls();
+    this.renderMapOverviewPanel();
+    this.setStatus(`${this.map.name} opened for editing`, 1400);
   }
 
   private openSelectedOverlay() {
@@ -4830,12 +4972,21 @@ export class CitadelGame {
       if (this.hud.mapEditorPanel) {
         this.hud.mapEditorPanel.hidden = true;
       }
+      if (this.hud.mapOverviewButton) {
+        this.hud.mapOverviewButton.hidden = true;
+      }
+      if (this.hud.mapOverviewPanel) {
+        this.hud.mapOverviewPanel.hidden = true;
+      }
       this.mapEditMode = false;
       return;
     }
 
     if (this.hud.mapEditButton) {
       this.hud.mapEditButton.hidden = false;
+    }
+    if (this.hud.mapOverviewButton) {
+      this.hud.mapOverviewButton.hidden = false;
     }
     this.hud.mapEditButton?.classList.toggle("active", this.mapEditMode);
     if (this.hud.mapEditButton) {
@@ -4895,19 +5046,21 @@ export class CitadelGame {
   }
 
   private updateMapScrollControls() {
+    const minCameraX = this.minCameraX();
     const maxCameraX = this.maxCameraX();
+    const minCameraY = this.minCameraY();
     const maxCameraY = this.maxCameraY();
     if (this.hud.scrollLeftButton) {
-      this.hud.scrollLeftButton.disabled = maxCameraX <= 0 || this.cameraX <= 0;
+      this.hud.scrollLeftButton.disabled = this.cameraX <= minCameraX;
     }
     if (this.hud.scrollRightButton) {
-      this.hud.scrollRightButton.disabled = maxCameraX <= 0 || this.cameraX >= maxCameraX;
+      this.hud.scrollRightButton.disabled = this.cameraX >= maxCameraX;
     }
     if (this.hud.scrollUpButton) {
-      this.hud.scrollUpButton.disabled = maxCameraY <= 0 || this.cameraY <= 0;
+      this.hud.scrollUpButton.disabled = this.cameraY <= minCameraY;
     }
     if (this.hud.scrollDownButton) {
-      this.hud.scrollDownButton.disabled = maxCameraY <= 0 || this.cameraY >= maxCameraY;
+      this.hud.scrollDownButton.disabled = this.cameraY >= maxCameraY;
     }
   }
 
@@ -5223,8 +5376,7 @@ export class CitadelGame {
     this.battleState = "playing";
     this.battleElapsedMs = 0;
     this.towersDestroyedThisBattle = 0;
-    this.cameraX = clamp(this.cameraX, 0, this.maxCameraX());
-    this.cameraY = clamp(this.cameraY, 0, this.maxCameraY());
+    this.clampCamera();
 
     this.redrawMapLayer();
     const startingUnit = this.createUnit("host", this.map.startingUnit, false);
@@ -5622,8 +5774,8 @@ export class CitadelGame {
 
     if (this.mapEditTool === "towerSlots") {
       this.addTowerSlot({
-        x: this.cameraX + DESIGN_WIDTH / 2,
-        y: this.cameraY + DESIGN_HEIGHT / 2,
+        x: this.cameraX + this.cameraViewportWidth() / 2,
+        y: this.cameraY + this.cameraViewportHeight() / 2,
       });
       this.setStatus("Tower base added", 1200);
       return;
@@ -5683,8 +5835,8 @@ export class CitadelGame {
     }
 
     const center = this.clampMapPoint({
-      x: this.cameraX + DESIGN_WIDTH / 2,
-      y: this.cameraY + DESIGN_HEIGHT / 2,
+      x: this.cameraX + this.cameraViewportWidth() / 2,
+      y: this.cameraY + this.cameraViewportHeight() / 2,
     });
     const path = [
       this.clampMapPoint({ x: center.x - 130, y: center.y }),
@@ -5770,6 +5922,82 @@ export class CitadelGame {
     tower.container.destroy({ children: true });
     if (this.selectedTower === tower) {
       this.selectedTower = null;
+    }
+  }
+
+  private removeUnitInstance(unit: Unit) {
+    this.unitLayer.removeChild(unit.container);
+    unit.container.destroy({ children: true });
+    if (unit.special && unit.kind in HOST_TYPES) {
+      this.deployedSpecialAngels.delete(unit.kind as HostKind);
+    }
+    if (this.selectedUnit === unit) {
+      this.selectedUnit = null;
+    }
+  }
+
+  private clearEffectsForRemovedTarget(target: Unit | Tower) {
+    const projectilesToRemove = this.projectiles.filter(
+      (projectile) => projectile.targetUnit === target || projectile.targetTower === target,
+    );
+    for (const projectile of projectilesToRemove) {
+      this.projectileLayer.removeChild(projectile.graphic);
+      projectile.graphic.destroy();
+    }
+    this.projectiles = this.projectiles.filter((projectile) => !projectilesToRemove.includes(projectile));
+
+    const beamsToRemove = this.beams.filter((beam) => beam.targetUnit === target);
+    for (const beam of beamsToRemove) {
+      this.projectileLayer.removeChild(beam.graphic);
+      beam.graphic.destroy();
+    }
+    this.beams = this.beams.filter((beam) => !beamsToRemove.includes(beam));
+  }
+
+  private selectedSellRefund() {
+    if (this.selectedTower) {
+      return Math.floor(TOWER_TYPES[this.selectedTower.kind as TowerKind].cost / 2);
+    }
+
+    if (this.selectedUnit && this.selectedUnit.team === "angel" && this.selectedUnit.kind in HOST_TYPES) {
+      return Math.floor(HOST_TYPES[this.selectedUnit.kind as HostKind].cost / 2);
+    }
+
+    return 0;
+  }
+
+  private sellSelectedCombatant() {
+    if (this.menuOpen || this.guideOpen || this.battleState !== "playing") {
+      return;
+    }
+
+    const refund = this.selectedSellRefund();
+    if (refund <= 0) {
+      this.setStatus("Nothing selected to sell", 1000);
+      return;
+    }
+
+    if (this.selectedTower) {
+      const tower = this.selectedTower;
+      this.clearEffectsForRemovedTarget(tower);
+      this.removeTowerInstance(tower);
+      this.towers = this.towers.filter((candidate) => candidate !== tower);
+      this.energy += refund;
+      this.renderBuildPanel();
+      this.updateHud();
+      this.setStatus(`${tower.name} sold for ${refund} energy`, 1300);
+      return;
+    }
+
+    if (this.selectedUnit && this.selectedUnit.team === "angel") {
+      const unit = this.selectedUnit;
+      this.clearEffectsForRemovedTarget(unit);
+      this.removeUnitInstance(unit);
+      this.units = this.units.filter((candidate) => candidate !== unit);
+      this.energy += refund;
+      this.renderBuildPanel();
+      this.updateHud();
+      this.setStatus(`${unit.name} sold for ${refund} energy`, 1300);
     }
   }
 
@@ -5861,8 +6089,7 @@ export class CitadelGame {
     this.selectedPathRouteIndex = 0;
     this.selectedPathIndex = 0;
     this.selectedSlotIndex = 0;
-    this.cameraX = clamp(this.cameraX, 0, this.maxCameraX());
-    this.cameraY = clamp(this.cameraY, 0, this.maxCameraY());
+    this.clampCamera();
     this.restart();
     this.mapEditMode = true;
     this.renderEditorOverlay();
@@ -6139,12 +6366,79 @@ export class CitadelGame {
     };
   }
 
+  private wheelScreenPoint(event: WheelEvent): Point {
+    const rect = this.app.canvas.getBoundingClientRect();
+    if (rect.width <= 0 || rect.height <= 0) {
+      return this.defaultCameraAnchor();
+    }
+
+    return {
+      x: ((event.clientX - rect.left) / rect.width) * this.app.screen.width,
+      y: ((event.clientY - rect.top) / rect.height) * this.app.screen.height,
+    };
+  }
+
   private pointerMapPoint(event: FederatedPointerEvent) {
     return this.world.toLocal(this.pointerScreenPoint(event));
   }
 
+  private trackCameraPointer(event: FederatedPointerEvent) {
+    if (event.pointerType !== "touch") {
+      return false;
+    }
+
+    this.cameraPointers.set(event.pointerId, this.pointerScreenPoint(event));
+    return true;
+  }
+
+  private beginCameraGesture() {
+    const entries = Array.from(this.cameraPointers.entries()).slice(0, 2);
+    if (entries.length < 2) {
+      this.cameraGesture = null;
+      return;
+    }
+
+    const [[firstId, first], [secondId, second]] = entries;
+    const center = { x: (first.x + second.x) / 2, y: (first.y + second.y) / 2 };
+    this.cameraGesture = {
+      pointerIds: [firstId, secondId],
+      startDistance: Math.max(1, distance(first, second)),
+      startZoom: this.cameraZoom,
+      startAnchorWorld: this.screenPointToWorld(center),
+    };
+  }
+
+  private updateCameraGesture() {
+    const gesture = this.cameraGesture;
+    if (!gesture) {
+      return false;
+    }
+
+    const first = this.cameraPointers.get(gesture.pointerIds[0]);
+    const second = this.cameraPointers.get(gesture.pointerIds[1]);
+    if (!first || !second) {
+      this.beginCameraGesture();
+      return true;
+    }
+
+    const center = { x: (first.x + second.x) / 2, y: (first.y + second.y) / 2 };
+    const nextZoom = clamp(
+      gesture.startZoom * (Math.max(1, distance(first, second)) / gesture.startDistance),
+      CAMERA_MIN_ZOOM,
+      CAMERA_MAX_ZOOM,
+    );
+    this.setCameraZoom(nextZoom, center, gesture.startAnchorWorld);
+    return true;
+  }
+
   private handlePointerDown(event: FederatedPointerEvent) {
     if (this.menuOpen || this.guideOpen || this.battleState !== "playing") {
+      return;
+    }
+
+    if (this.trackCameraPointer(event) && this.cameraPointers.size >= 2) {
+      this.beginCameraGesture();
+      event.stopPropagation();
       return;
     }
 
@@ -6285,6 +6579,11 @@ export class CitadelGame {
   }
 
   private handlePointerMove(event: FederatedPointerEvent) {
+    if (this.trackCameraPointer(event) && this.updateCameraGesture()) {
+      event.stopPropagation();
+      return;
+    }
+
     if (!this.mapEditMode || !this.editorDragTarget) {
       this.updateTowerPlacementCursor(event);
       return;
@@ -6317,7 +6616,18 @@ export class CitadelGame {
     this.applyMapEditChange();
   }
 
-  private handlePointerUp() {
+  private handlePointerUp(event?: FederatedPointerEvent) {
+    if (event?.pointerType === "touch") {
+      this.cameraPointers.delete(event.pointerId);
+      if (this.cameraGesture) {
+        if (this.cameraPointers.size >= 2) {
+          this.beginCameraGesture();
+        } else {
+          this.cameraGesture = null;
+        }
+      }
+    }
+
     const hadDragTarget = Boolean(this.editorDragTarget);
     this.editorDragTarget = null;
     if (hadDragTarget && this.mapEditMode) {
@@ -6892,7 +7202,7 @@ export class CitadelGame {
     const path = this.map.paths[pathId] ?? this.map.paths[0];
     const spawnPosition = position ?? path[0];
     const type = ENEMY_TYPES[kind];
-    const sprite = new Sprite(this.textures.enemy[kind]);
+    const sprite = new Sprite(this.enemyTexture(kind, 0));
     sprite.anchor.set(0.5, 0.86);
     sprite.scale.set(type.scale);
 
@@ -7292,7 +7602,7 @@ export class CitadelGame {
       }
     }
 
-    const attackRange = moving ? unit.engagementRange * 0.65 : unit.attackRange;
+    const attackRange = this.unitEffectiveAttackRange(unit, moving);
     const target =
       unit.damagePerMember > 0
         ? unit.team === "angel"
@@ -7305,7 +7615,7 @@ export class CitadelGame {
 
     if (target && unit.attackTimerMs <= 0 && aliveMembers.length > 0) {
       unit.pose = "attack";
-      unit.poseTimerMs = 240;
+      unit.poseTimerMs = this.hostPoseDurationMs(unit.kind, "attack");
       this.fireUnitVolley(unit, aliveMembers, attackRange);
       unit.attackTimerMs = moving ? unit.attackCooldownMs * 1.45 : unit.attackCooldownMs;
       this.spendUnitMp(unit, moving ? 3 : 5);
@@ -7324,7 +7634,7 @@ export class CitadelGame {
         );
         if (!target && unit.poseTimerMs <= 0) {
           unit.pose = "attack";
-          unit.poseTimerMs = 160;
+          unit.poseTimerMs = this.hostPoseDurationMs(unit.kind, "attack");
         }
       }
     }
@@ -7340,6 +7650,11 @@ export class CitadelGame {
   }
 
   private fireUnitVolley(unit: Unit, members: UnitMember[], attackRange: number) {
+    if (!this.unitUsesProjectiles(unit)) {
+      this.fireUnitMeleeStrikes(unit, members, attackRange);
+      return;
+    }
+
     members.forEach((member, index) => {
       const origin = this.memberShotOrigin(unit, member);
       const targetOffset = this.projectileTargetOffset(member.targetPreference + index);
@@ -7387,6 +7702,100 @@ export class CitadelGame {
         targetOffset,
       );
     });
+  }
+
+  private unitEffectiveAttackRange(unit: Unit, moving: boolean) {
+    return moving ? unit.engagementRange * 0.65 : unit.attackRange;
+  }
+
+  private unitUsesProjectiles(unit: Unit) {
+    return unit.kind === "archers" || unit.specialAbility === "washback" || unit.specialAbility === "archangel";
+  }
+
+  private fireUnitMeleeStrikes(unit: Unit, members: UnitMember[], attackRange: number) {
+    const meleeReach = attackRange + 28;
+    let landed = false;
+
+    members.forEach((member, index) => {
+      const origin = this.memberMeleeOrigin(unit, member);
+      const damage = this.unitDamage(unit, unit.damagePerMember);
+
+      if (unit.team === "angel") {
+        const target = this.findDemonTargetForMember(origin, meleeReach, member.targetPreference + index);
+        if (!target) {
+          return;
+        }
+        this.damageDemonTarget(target, damage);
+        this.createMeleeSlash(origin, combatTargetPoint(target), 0xffefd1, unit.facingX);
+        landed = true;
+        return;
+      }
+
+      const target = this.findAngelTargetForMember(origin, meleeReach, unit, member.targetPreference + index);
+      if (!target) {
+        return;
+      }
+      this.damageAngelTarget(target, damage);
+      this.createMeleeSlash(origin, combatTargetPoint(target), 0xbc4cff, unit.facingX);
+      landed = true;
+    });
+
+    if (landed) {
+      this.audio.playProjectile();
+    }
+  }
+
+  private damageDemonTarget(target: DemonTarget, damage: number) {
+    if (target.enemy) {
+      target.enemy.hp = clamp(target.enemy.hp - damage, 0, target.enemy.maxHp);
+      this.redrawEnemy(target.enemy);
+      return;
+    }
+
+    this.damageUnit(target.unit, damage);
+    this.redrawUnit(target.unit);
+  }
+
+  private damageAngelTarget(target: AngelTarget, damage: number) {
+    if (target.unit) {
+      this.damageUnit(target.unit, damage);
+      this.redrawUnit(target.unit);
+      return;
+    }
+
+    this.damageTower(target.tower, damage);
+    this.redrawTower(target.tower);
+  }
+
+  private createMeleeSlash(origin: Point, target: Point, color: number, facingX: number) {
+    const midX = (origin.x + target.x) / 2;
+    const midY = (origin.y + target.y) / 2 - 8;
+    const arc = new Graphics()
+      .moveTo(midX - 18 * facingX, midY - 14)
+      .quadraticCurveTo(midX + 10 * facingX, midY - 28, midX + 28 * facingX, midY + 10)
+      .stroke({ color, width: 5, alpha: 0.78 })
+      .moveTo(midX - 12 * facingX, midY - 7)
+      .quadraticCurveTo(midX + 7 * facingX, midY - 18, midX + 19 * facingX, midY + 7)
+      .stroke({ color: 0xffffff, width: 2, alpha: 0.74 });
+    this.projectileLayer.addChild(arc);
+    this.shockwaves.push({
+      x: midX,
+      y: midY,
+      radius: 30,
+      ageMs: 0,
+      durationMs: 190,
+      color,
+      style: "slash",
+      facingX,
+      graphic: arc,
+    });
+  }
+
+  private memberMeleeOrigin(unit: Unit, member: UnitMember): Point {
+    return {
+      x: unit.x + member.offset.x * 0.78 + unit.facingX * 22,
+      y: unit.y + member.offset.y - 18,
+    };
   }
 
   private memberShotOrigin(unit: Unit, member: UnitMember): Point {
@@ -8144,6 +8553,8 @@ export class CitadelGame {
           0,
           this.map.gate.maxHp,
         );
+        this.animateEnemy(enemy, deltaMs, true);
+        this.redrawEnemy(enemy);
         continue;
       }
 
@@ -8197,23 +8608,24 @@ export class CitadelGame {
     const step = Math.sin(phase * TAU);
     const doubleStep = Math.sin(phase * TAU * 2);
     const stride = blocked ? 0.35 : 1;
-    const bob = Math.abs(doubleStep) * animation.bobPx * stride;
-    const drift = step * animation.driftPx * stride;
-    const scaleX = enemy.baseScale * (1 + Math.abs(step) * animation.scaleX * stride);
-    const scaleY = enemy.baseScale * (1 - Math.abs(step) * animation.scaleY * stride + (blocked ? 0.018 : 0));
+    const bob = Math.abs(doubleStep) * animation.bobPx * stride * 0.35;
+    const drift = step * animation.driftPx * stride * 0.55;
+    const scaleX = enemy.baseScale * (1 + Math.abs(step) * animation.scaleX * stride * 0.45);
+    const scaleY = enemy.baseScale * (1 - Math.abs(step) * animation.scaleY * stride * 0.42 + (blocked ? 0.012 : 0));
 
+    enemy.sprite.texture = this.enemyTexture(enemy.kind as EnemyKind, enemy.walkTimeMs);
     enemy.sprite.scale.set(-enemy.facingX * scaleX, scaleY);
     enemy.sprite.position.set(drift * enemy.facingX, -bob);
-    enemy.sprite.rotation = ((step * animation.swayDeg * Math.PI) / 180) * enemy.facingX;
+    enemy.sprite.rotation = ((step * animation.swayDeg * Math.PI) / 180) * enemy.facingX * 0.55;
 
     if (enemy.kind === "shadowCaster") {
-      enemy.sprite.position.y -= 8 + Math.sin(phase * TAU) * 5;
+      enemy.sprite.position.y -= 8 + Math.sin(phase * TAU) * 2.5;
       enemy.sprite.rotation *= 0.35;
     } else if (enemy.kind === "flyingHarrier") {
-      enemy.sprite.position.y -= 18 + Math.abs(step) * 12;
-      enemy.sprite.rotation += Math.sin(phase * TAU * 1.5) * 0.035;
+      enemy.sprite.position.y -= 20 + Math.sin(phase * TAU * 1.5) * 3.5;
+      enemy.sprite.rotation += Math.sin(phase * TAU * 1.5) * 0.018;
     } else if (enemy.kind === "darkArchangel") {
-      enemy.sprite.position.y -= 5 + Math.sin(phase * TAU) * 2;
+      enemy.sprite.position.y -= 5 + Math.sin(phase * TAU) * 1.2;
       enemy.sprite.rotation *= 0.45;
     } else if (enemy.kind === "siegeBrute") {
       enemy.sprite.position.y += Math.max(0, -doubleStep) * 2;
@@ -8619,10 +9031,22 @@ export class CitadelGame {
     for (const shockwave of this.shockwaves) {
       shockwave.ageMs += deltaMs;
       const t = clamp(shockwave.ageMs / shockwave.durationMs, 0, 1);
-      shockwave.graphic
-        .clear()
-        .circle(shockwave.x, shockwave.y, shockwave.radius * t)
-        .stroke({ color: shockwave.color, width: 5 * (1 - t), alpha: 0.55 * (1 - t) });
+      shockwave.graphic.clear();
+      if (shockwave.style === "slash") {
+        const facingX = shockwave.facingX ?? 1;
+        const rise = 1 - t;
+        shockwave.graphic
+          .moveTo(shockwave.x - 20 * facingX, shockwave.y - 12 * rise)
+          .quadraticCurveTo(shockwave.x + 12 * facingX, shockwave.y - 30 * rise, shockwave.x + 30 * facingX, shockwave.y + 9)
+          .stroke({ color: shockwave.color, width: 5 * rise, alpha: 0.78 * rise })
+          .moveTo(shockwave.x - 12 * facingX, shockwave.y - 5 * rise)
+          .quadraticCurveTo(shockwave.x + 8 * facingX, shockwave.y - 18 * rise, shockwave.x + 20 * facingX, shockwave.y + 6)
+          .stroke({ color: 0xffffff, width: 2 * rise, alpha: 0.72 * rise });
+      } else {
+        shockwave.graphic
+          .circle(shockwave.x, shockwave.y, shockwave.radius * t)
+          .stroke({ color: shockwave.color, width: 5 * (1 - t), alpha: 0.55 * (1 - t) });
+      }
 
       if (t >= 1) {
         done.push(shockwave);
@@ -8961,20 +9385,20 @@ export class CitadelGame {
       const memberHit = memberAlive && member.hitTimerMs > 0;
       let bob = 0;
       if (walking) {
-        bob = Math.abs(doubleStep) * 7 * member.bobJitter;
+        bob = Math.abs(doubleStep) * 2.2 * member.bobJitter;
       } else if (memberAlive && unit.pose === "idle") {
         bob = step * 1.4 * member.bobJitter;
       } else if (casting) {
         bob = Math.sin(phase * TAU) * 2;
       }
 
-      const sway = memberAlive ? (walking ? step * 3.2 * member.bobJitter : step * 0.8) : 0;
+      const sway = memberAlive ? (walking ? step * 1.55 * member.bobJitter : step * 0.8) : 0;
       const recoil = casting ? 3 + member.targetPreference * 0.35 : 0;
       const baseScale = hostAnimation.scale * member.scaleJitter * (memberHit ? 0.98 : 1);
       const xScale = baseScale * unit.facingX;
       let yScale = baseScale;
       if (walking) {
-        yScale *= 1 - Math.abs(step) * 0.025;
+        yScale *= 1 - Math.abs(step) * 0.01;
       } else if (!memberAlive) {
         yScale *= 0.86;
       }
@@ -8988,7 +9412,7 @@ export class CitadelGame {
       member.sprite.position.set(member.offset.x + (sway - recoil) * unit.facingX, member.offset.y - bob + deathDrop);
       member.sprite.rotation =
         memberAlive
-          ? (walking ? step * 0.055 : step * 0.016) * unit.facingX
+          ? (walking ? step * 0.024 : step * 0.016) * unit.facingX
           : 0.18 * unit.facingX;
       member.sprite.scale.set(xScale, yScale);
       member.sprite.tint = unit.team === "demon" ? 0xf2a0ff : unit.tint;
@@ -9271,6 +9695,23 @@ export class CitadelGame {
         this.hud.tensionBurstButton.style.removeProperty("--tension-progress");
       }
     }
+    if (this.hud.sellSelectedButton) {
+      const refund = this.selectedSellRefund();
+      const canSell = refund > 0 && this.battleState === "playing" && !this.menuOpen && !this.guideOpen;
+      const selectedOverlayOpen = !this.hud.selectedOverlay?.hidden;
+      this.hud.sellSelectedButton.hidden =
+        selectedOverlayOpen || (!selectedTower && !(selectedUnit && selectedUnit.team === "angel"));
+      this.hud.sellSelectedButton.disabled = !canSell;
+      this.hud.sellSelectedButton.title = refund > 0 ? `Sell for ${refund} energy` : "Sell selected";
+      this.hud.sellSelectedButton.setAttribute(
+        "aria-label",
+        refund > 0 ? `Sell selected for ${refund} energy` : "Sell selected",
+      );
+      const label = this.hud.sellSelectedButton.querySelector("span");
+      if (label) {
+        label.textContent = refund > 0 ? `Sell +${refund}` : "Sell";
+      }
+    }
     if (this.hud.towerRangeButton) {
       this.hud.towerRangeButton.hidden = !selectedTower;
       this.hud.towerRangeButton.disabled = !selectedTower || this.battleState !== "playing" || this.menuOpen || this.guideOpen;
@@ -9301,6 +9742,9 @@ export class CitadelGame {
       if (this.menuOpen || this.guideOpen || (!selectedUnit && !selectedTower)) {
         this.hud.selectedOverlay.hidden = true;
       }
+    }
+    if (this.hud.abandonBattleButton) {
+      this.hud.abandonBattleButton.disabled = this.menuOpen || this.battleState !== "playing";
     }
 
     if (this.buildPanelStateKey !== this.getBuildPanelStateKey()) {
@@ -9465,32 +9909,119 @@ export class CitadelGame {
 
     graphic
       .rect(
-        tx(this.cameraX),
-        ty(this.cameraY),
-        Math.min(DESIGN_WIDTH, this.map.width) * mapScale,
-        Math.min(DESIGN_HEIGHT, this.map.height) * mapScale,
+        tx(clamp(this.cameraX, 0, this.map.width)),
+        ty(clamp(this.cameraY, 0, this.map.height)),
+        Math.max(0, clamp(this.cameraX + this.cameraViewportWidth(), 0, this.map.width) - clamp(this.cameraX, 0, this.map.width)) *
+          mapScale,
+        Math.max(
+          0,
+          clamp(this.cameraY + this.cameraViewportHeight(), 0, this.map.height) - clamp(this.cameraY, 0, this.map.height),
+        ) * mapScale,
       )
       .stroke({ color: 0xffffff, width: 2, alpha: 0.82 })
       .rect(
-        tx(this.cameraX),
-        ty(this.cameraY),
-        Math.min(DESIGN_WIDTH, this.map.width) * mapScale,
-        Math.min(DESIGN_HEIGHT, this.map.height) * mapScale,
+        tx(clamp(this.cameraX, 0, this.map.width)),
+        ty(clamp(this.cameraY, 0, this.map.height)),
+        Math.max(0, clamp(this.cameraX + this.cameraViewportWidth(), 0, this.map.width) - clamp(this.cameraX, 0, this.map.width)) *
+          mapScale,
+        Math.max(
+          0,
+          clamp(this.cameraY + this.cameraViewportHeight(), 0, this.map.height) - clamp(this.cameraY, 0, this.map.height),
+        ) * mapScale,
       )
       .fill({ color: 0xffffff, alpha: 0.045 });
   }
 
+  private cameraViewportWidth() {
+    return DESIGN_WIDTH / this.cameraZoom;
+  }
+
+  private cameraViewportHeight() {
+    return DESIGN_HEIGHT / this.cameraZoom;
+  }
+
+  private cameraBoundsForAxis(mapLength: number, viewportLength: number) {
+    const nativeMin = Math.min(0, mapLength - viewportLength);
+    const nativeMax = Math.max(0, mapLength - viewportLength);
+    const slack = viewportLength * CAMERA_OVERSCROLL_RATIO;
+    return {
+      min: nativeMin - slack,
+      max: nativeMax + slack,
+    };
+  }
+
+  private cameraBoundsX() {
+    return this.cameraBoundsForAxis(this.map.width, this.cameraViewportWidth());
+  }
+
+  private cameraBoundsY() {
+    return this.cameraBoundsForAxis(this.map.height, this.cameraViewportHeight());
+  }
+
+  private minCameraX() {
+    return this.cameraBoundsX().min;
+  }
+
   private maxCameraX() {
-    return Math.max(0, this.map.width - DESIGN_WIDTH);
+    return this.cameraBoundsX().max;
+  }
+
+  private minCameraY() {
+    return this.cameraBoundsY().min;
   }
 
   private maxCameraY() {
-    return Math.max(0, this.map.height - DESIGN_HEIGHT);
+    return this.cameraBoundsY().max;
+  }
+
+  private clampCamera() {
+    this.cameraZoom = clamp(this.cameraZoom, CAMERA_MIN_ZOOM, CAMERA_MAX_ZOOM);
+    const boundsX = this.cameraBoundsX();
+    const boundsY = this.cameraBoundsY();
+    this.cameraX = clamp(this.cameraX, boundsX.min, boundsX.max);
+    this.cameraY = clamp(this.cameraY, boundsY.min, boundsY.max);
+  }
+
+  private resetCamera() {
+    this.cameraX = 0;
+    this.cameraY = 0;
+    this.cameraZoom = 1;
+    this.cameraPointers.clear();
+    this.cameraGesture = null;
+    this.clampCamera();
+  }
+
+  private screenPointToWorld(point: Point) {
+    const metrics = this.layoutMetrics();
+    const worldScale = metrics.scale * this.cameraZoom;
+    return {
+      x: this.cameraX + (point.x - metrics.left) / worldScale,
+      y: this.cameraY + (point.y - metrics.top) / worldScale,
+    };
+  }
+
+  private setCameraZoom(nextZoom: number, anchorScreen = this.defaultCameraAnchor(), anchorWorld = this.screenPointToWorld(anchorScreen)) {
+    this.cameraZoom = clamp(nextZoom, CAMERA_MIN_ZOOM, CAMERA_MAX_ZOOM);
+    const metrics = this.layoutMetrics();
+    const worldScale = metrics.scale * this.cameraZoom;
+    this.cameraX = anchorWorld.x - (anchorScreen.x - metrics.left) / worldScale;
+    this.cameraY = anchorWorld.y - (anchorScreen.y - metrics.top) / worldScale;
+    this.clampCamera();
+    this.layout();
+    this.updateMapScrollControls();
+  }
+
+  private defaultCameraAnchor() {
+    const metrics = this.layoutMetrics();
+    return {
+      x: metrics.left + (DESIGN_WIDTH * metrics.scale) / 2,
+      y: metrics.top + (DESIGN_HEIGHT * metrics.scale) / 2,
+    };
   }
 
   private panCamera(deltaX: number, deltaY: number) {
-    const nextX = clamp(this.cameraX + deltaX, 0, this.maxCameraX());
-    const nextY = clamp(this.cameraY + deltaY, 0, this.maxCameraY());
+    const nextX = clamp(this.cameraX + deltaX / this.cameraZoom, this.minCameraX(), this.maxCameraX());
+    const nextY = clamp(this.cameraY + deltaY / this.cameraZoom, this.minCameraY(), this.maxCameraY());
     if (nextX === this.cameraX && nextY === this.cameraY) {
       return;
     }
@@ -9501,15 +10032,14 @@ export class CitadelGame {
   }
 
   private handleWheel(event: WheelEvent) {
-    const maxCameraX = this.maxCameraX();
-    const maxCameraY = this.maxCameraY();
-    if (maxCameraX <= 0 && maxCameraY <= 0) {
+    event.preventDefault();
+    if (event.ctrlKey || event.metaKey) {
+      this.setCameraZoom(this.cameraZoom * Math.exp(-event.deltaY * 0.002), this.wheelScreenPoint(event));
       return;
     }
 
-    event.preventDefault();
-    const deltaX = maxCameraX > 0 ? (Math.abs(event.deltaX) > 1 ? event.deltaX : maxCameraY <= 0 ? event.deltaY : 0) : 0;
-    const deltaY = maxCameraY > 0 ? event.deltaY : 0;
+    const deltaX = Math.abs(event.deltaX) > 1 ? event.deltaX : event.shiftKey ? event.deltaY : 0;
+    const deltaY = event.shiftKey ? 0 : event.deltaY;
     this.panCamera(deltaX * 1.35, deltaY * 1.35);
   }
 
@@ -9523,8 +10053,9 @@ export class CitadelGame {
     const pointer = this.pointerScreenPoint(event);
     const mapX = clamp((pointer.x - metrics.mapX) / metrics.scale, 0, this.map.width);
     const mapY = clamp((pointer.y - metrics.mapY) / metrics.scale, 0, this.map.height);
-    this.cameraX = clamp(mapX - DESIGN_WIDTH / 2, 0, this.maxCameraX());
-    this.cameraY = clamp(mapY - DESIGN_HEIGHT / 2, 0, this.maxCameraY());
+    this.cameraX = mapX - this.cameraViewportWidth() / 2;
+    this.cameraY = mapY - this.cameraViewportHeight() / 2;
+    this.clampCamera();
     this.layout();
     this.updateMapScrollControls();
     this.updateMinimap();
@@ -9532,9 +10063,8 @@ export class CitadelGame {
 
   private layout() {
     const metrics = this.layoutMetrics();
-    const scale = metrics.scale;
-    this.cameraX = clamp(this.cameraX, 0, this.maxCameraX());
-    this.cameraY = clamp(this.cameraY, 0, this.maxCameraY());
+    const scale = metrics.scale * this.cameraZoom;
+    this.clampCamera();
     this.world.scale.set(scale);
     this.world.position.set(metrics.left - this.cameraX * scale, metrics.top - this.cameraY * scale);
     this.app.stage.hitArea = new Rectangle(0, 0, this.app.screen.width, this.app.screen.height);

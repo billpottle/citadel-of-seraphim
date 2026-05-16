@@ -46,14 +46,24 @@ const specialAngelAnimations: Record<AnimationKey, SpriteAnimation> = {
   die: { row: 0, frames: 8, frameMs: 120, loop: false },
 };
 
-const hostTextures = (folder: string): Record<AnimationKey, string> => ({
-  idle: `/assets/sprites/${folder}/idle.png`,
-  walk: `/assets/sprites/${folder}/walk.png`,
-  attack: `/assets/sprites/${folder}/attack.png`,
-  cast: `/assets/sprites/${folder}/cast.png`,
-  special: `/assets/sprites/${folder}/cast.png`,
-  hit: `/assets/sprites/${folder}/hit.png`,
-  die: `/assets/sprites/${folder}/die.png`,
+const hostUnitAnimations: Record<AnimationKey, SpriteAnimation> = {
+  idle: { row: 0, frames: 6, frameMs: 145, loop: true },
+  walk: { row: 0, frames: 8, frameMs: 82, loop: true },
+  attack: { row: 0, frames: 6, frameMs: 74, loop: false },
+  cast: { row: 0, frames: 6, frameMs: 92, loop: false },
+  special: { row: 0, frames: 6, frameMs: 92, loop: false },
+  hit: { row: 0, frames: 4, frameMs: 68, loop: false },
+  die: { row: 0, frames: 8, frameMs: 118, loop: false },
+};
+
+const animatedHostTextures = (folder: string): Record<AnimationKey, string> => ({
+  idle: `/assets/sprites/animated-hosts/${folder}/idle.png`,
+  walk: `/assets/sprites/animated-hosts/${folder}/walk.png`,
+  attack: `/assets/sprites/animated-hosts/${folder}/attack.png`,
+  cast: `/assets/sprites/animated-hosts/${folder}/cast.png`,
+  special: `/assets/sprites/animated-hosts/${folder}/cast.png`,
+  hit: `/assets/sprites/animated-hosts/${folder}/hit.png`,
+  die: `/assets/sprites/animated-hosts/${folder}/die.png`,
 });
 
 const specialAngelTextures = (name: string): Record<AnimationKey, string> => ({
@@ -79,28 +89,28 @@ const specialAngelPreviews = (name: string): Partial<Record<AnimationKey, string
 export const hostAnimationCatalog: Record<HostSpriteKey, CharacterAnimationSet> = {
   host: {
     scale: 0.12,
-    textures: hostTextures("angel-host"),
-    animations: singleFrameAnimations,
+    textures: animatedHostTextures("angel-host"),
+    animations: hostUnitAnimations,
   },
   healer: {
     scale: 0.112,
-    textures: hostTextures("healer-choir"),
-    animations: singleFrameAnimations,
+    textures: animatedHostTextures("healer-choir"),
+    animations: hostUnitAnimations,
   },
   thrones: {
     scale: 0.13,
-    textures: hostTextures("thrones"),
-    animations: singleFrameAnimations,
+    textures: animatedHostTextures("thrones"),
+    animations: hostUnitAnimations,
   },
   archers: {
     scale: 0.113,
-    textures: hostTextures("archers"),
-    animations: singleFrameAnimations,
+    textures: animatedHostTextures("archers"),
+    animations: hostUnitAnimations,
   },
   cavalry: {
     scale: 0.118,
-    textures: hostTextures("cavalry"),
-    animations: singleFrameAnimations,
+    textures: animatedHostTextures("cavalry"),
+    animations: hostUnitAnimations,
   },
   raphael: {
     scale: 0.29,
