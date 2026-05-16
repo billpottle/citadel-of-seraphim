@@ -1,4 +1,5 @@
 import type { Point } from "./types";
+import { MAP_LAYOUT_OVERRIDES, type MapLayoutOverride } from "./mapLayoutOverrides";
 
 export const DESIGN_WIDTH = 1280;
 export const DESIGN_HEIGHT = 720;
@@ -15,8 +16,10 @@ export type MapDefinition = {
   name: string;
   background: string;
   width: number;
+  height: number;
   path: Point[];
   paths?: Point[][];
+  sidePaths?: Point[][];
   towerSlots: Point[];
   gate: GateConfig;
   startingUnit: Point;
@@ -25,26 +28,36 @@ export type MapDefinition = {
 export const MAP_ORDER = ["citadel", "skybridge", "moonGarden", "sunreach", "nightBridges"] as const;
 export type MapId = (typeof MAP_ORDER)[number];
 export const DEFAULT_MAP_ID: MapId = "citadel";
+const TALL_MAP_HEIGHT = DESIGN_HEIGHT * 2;
+const TALL_MAP_SCALE_Y = TALL_MAP_HEIGHT / DESIGN_HEIGHT;
+const tallPoint = (point: Point): Point => ({ x: point.x, y: Math.round(point.y * TALL_MAP_SCALE_Y) });
+const tallPath = (path: Point[]) => path.map(tallPoint);
+const tallGate = (gate: GateConfig): GateConfig => ({
+  ...gate,
+  y: Math.round(gate.y * TALL_MAP_SCALE_Y),
+  height: Math.round(gate.height * TALL_MAP_SCALE_Y),
+});
 
 const CITADEL_PATH: Point[] = [
-  { x: 66, y: 124 },
-  { x: 118, y: 238 },
-  { x: 134, y: 334 },
-  { x: 282, y: 478 },
-  { x: 426, y: 476 },
-  { x: 565, y: 390 },
-  { x: 736, y: 330 },
-  { x: 930, y: 330 },
-  { x: 1105, y: 382 },
+  { x: 142, y: 120 },
+  { x: 194, y: 164 },
+  { x: 324, y: 276 },
+  { x: 298, y: 416 },
+  { x: 458, y: 492 },
+  { x: 594, y: 430 },
+  { x: 626, y: 330 },
+  { x: 826, y: 314 },
+  { x: 1018, y: 320 },
+  { x: 1138, y: 162 },
 ];
 
 const CITADEL_TOWER_SLOTS: Point[] = [
-  { x: 504, y: 199 },
-  { x: 738, y: 200 },
-  { x: 432, y: 356 },
-  { x: 552, y: 542 },
-  { x: 789, y: 407 },
-  { x: 296, y: 508 },
+  { x: 640, y: 198 },
+  { x: 890, y: 210 },
+  { x: 548, y: 398 },
+  { x: 348, y: 544 },
+  { x: 948, y: 404 },
+  { x: 648, y: 636 },
 ];
 
 export const MAPS: Record<MapId, MapDefinition> = {
@@ -52,240 +65,294 @@ export const MAPS: Record<MapId, MapDefinition> = {
     name: "Citadel Breach",
     background: "/assets/concepts/citadel-battlefield-concept.png",
     width: DESIGN_WIDTH,
+    height: DESIGN_HEIGHT,
     path: CITADEL_PATH,
     towerSlots: CITADEL_TOWER_SLOTS,
     gate: {
-      x: 1104,
-      y: 310,
-      width: 46,
-      height: 146,
+      x: 1098,
+      y: 96,
+      width: 88,
+      height: 132,
       maxHp: 720,
     },
-    startingUnit: { x: 430, y: 476 },
+    startingUnit: { x: 458, y: 492 },
   },
   skybridge: {
     name: "Seraphic Skybridge",
     background: "/assets/concepts/citadel-skybridge-map.png",
     width: DESIGN_WIDTH,
+    height: DESIGN_HEIGHT,
     path: [
-      { x: 82, y: 188 },
-      { x: 172, y: 246 },
-      { x: 248, y: 338 },
-      { x: 352, y: 428 },
-      { x: 500, y: 402 },
-      { x: 640, y: 318 },
-      { x: 806, y: 300 },
-      { x: 954, y: 334 },
-      { x: 1110, y: 260 },
+      { x: 142, y: 130 },
+      { x: 222, y: 178 },
+      { x: 344, y: 282 },
+      { x: 320, y: 438 },
+      { x: 480, y: 516 },
+      { x: 640, y: 432 },
+      { x: 690, y: 330 },
+      { x: 890, y: 338 },
+      { x: 1060, y: 352 },
+      { x: 1150, y: 156 },
     ],
     towerSlots: [
-      { x: 398, y: 164 },
-      { x: 736, y: 203 },
-      { x: 363, y: 390 },
-      { x: 788, y: 553 },
-      { x: 958, y: 425 },
-      { x: 223, y: 544 },
+      { x: 640, y: 206 },
+      { x: 888, y: 220 },
+      { x: 540, y: 412 },
+      { x: 342, y: 594 },
+      { x: 934, y: 498 },
+      { x: 646, y: 640 },
     ],
     gate: {
-      x: 1092,
-      y: 120,
-      width: 58,
-      height: 164,
+      x: 1112,
+      y: 96,
+      width: 84,
+      height: 132,
       maxHp: 720,
     },
-    startingUnit: { x: 500, y: 402 },
+    startingUnit: { x: 480, y: 516 },
   },
   moonGarden: {
     name: "Moon Garden",
     background: "/assets/concepts/citadel-moon-garden-map.png",
     width: DESIGN_WIDTH,
+    height: DESIGN_HEIGHT,
     path: [
-      { x: 70, y: 164 },
-      { x: 132, y: 286 },
-      { x: 292, y: 402 },
-      { x: 474, y: 430 },
-      { x: 596, y: 356 },
-      { x: 674, y: 272 },
-      { x: 810, y: 298 },
-      { x: 948, y: 392 },
-      { x: 1120, y: 318 },
+      { x: 142, y: 132 },
+      { x: 224, y: 178 },
+      { x: 330, y: 286 },
+      { x: 314, y: 440 },
+      { x: 486, y: 516 },
+      { x: 626, y: 438 },
+      { x: 674, y: 330 },
+      { x: 886, y: 336 },
+      { x: 1068, y: 370 },
+      { x: 1164, y: 232 },
     ],
     towerSlots: [
-      { x: 456, y: 219 },
-      { x: 652, y: 217 },
-      { x: 330, y: 426 },
-      { x: 560, y: 546 },
-      { x: 880, y: 432 },
-      { x: 704, y: 542 },
+      { x: 606, y: 218 },
+      { x: 842, y: 228 },
+      { x: 518, y: 404 },
+      { x: 646, y: 636 },
+      { x: 940, y: 482 },
+      { x: 300, y: 590 },
     ],
     gate: {
-      x: 1098,
-      y: 214,
-      width: 52,
-      height: 152,
+      x: 1126,
+      y: 168,
+      width: 86,
+      height: 134,
       maxHp: 720,
     },
-    startingUnit: { x: 474, y: 430 },
+    startingUnit: { x: 486, y: 516 },
   },
   sunreach: {
     name: "Sunreach Causeway",
     background: "/assets/concepts/citadel-sunreach-causeway-map.png",
     width: 2560,
-    path: [
-      { x: 112, y: 140 },
-      { x: 246, y: 190 },
-      { x: 424, y: 256 },
-      { x: 628, y: 320 },
-      { x: 840, y: 314 },
-      { x: 1040, y: 270 },
-      { x: 1250, y: 298 },
-      { x: 1460, y: 348 },
-      { x: 1685, y: 320 },
-      { x: 1910, y: 360 },
-      { x: 2160, y: 300 },
-      { x: 2380, y: 202 },
-    ],
+    height: TALL_MAP_HEIGHT,
+    path: tallPath([
+      { x: 208, y: 236 },
+      { x: 405, y: 292 },
+      { x: 520, y: 148 },
+      { x: 710, y: 100 },
+      { x: 902, y: 224 },
+      { x: 1110, y: 236 },
+      { x: 1225, y: 92 },
+      { x: 1450, y: 104 },
+      { x: 1665, y: 150 },
+      { x: 1900, y: 154 },
+      { x: 2140, y: 168 },
+      { x: 2380, y: 108 },
+      { x: 2526, y: 52 },
+    ]),
     paths: [
-      [
-        { x: 112, y: 140 },
-        { x: 246, y: 190 },
-        { x: 424, y: 256 },
-        { x: 628, y: 320 },
-        { x: 840, y: 314 },
-        { x: 1040, y: 270 },
-        { x: 1250, y: 298 },
-        { x: 1460, y: 348 },
-        { x: 1685, y: 320 },
-        { x: 1910, y: 360 },
-        { x: 2160, y: 300 },
-        { x: 2380, y: 202 },
-      ],
-      [
-        { x: 100, y: 362 },
-        { x: 292, y: 392 },
-        { x: 480, y: 420 },
-        { x: 702, y: 388 },
-        { x: 938, y: 370 },
-        { x: 1160, y: 404 },
-        { x: 1400, y: 420 },
-        { x: 1640, y: 384 },
-        { x: 1904, y: 356 },
-        { x: 2160, y: 300 },
-        { x: 2380, y: 202 },
-      ],
-      [
-        { x: 360, y: 628 },
-        { x: 574, y: 574 },
-        { x: 782, y: 520 },
-        { x: 1010, y: 492 },
-        { x: 1240, y: 430 },
-        { x: 1460, y: 348 },
-        { x: 1685, y: 320 },
-        { x: 1910, y: 360 },
-        { x: 2160, y: 300 },
-        { x: 2380, y: 202 },
-      ],
+      tallPath([
+        { x: 208, y: 236 },
+        { x: 405, y: 292 },
+        { x: 520, y: 148 },
+        { x: 710, y: 100 },
+        { x: 902, y: 224 },
+        { x: 1110, y: 236 },
+        { x: 1225, y: 92 },
+        { x: 1450, y: 104 },
+        { x: 1665, y: 150 },
+        { x: 1900, y: 154 },
+        { x: 2140, y: 168 },
+        { x: 2380, y: 108 },
+        { x: 2526, y: 52 },
+      ]),
+      tallPath([
+        { x: 330, y: 708 },
+        { x: 520, y: 548 },
+        { x: 760, y: 532 },
+        { x: 980, y: 448 },
+        { x: 1200, y: 352 },
+        { x: 1430, y: 338 },
+        { x: 1660, y: 392 },
+        { x: 1888, y: 424 },
+        { x: 2148, y: 406 },
+        { x: 2355, y: 278 },
+        { x: 2526, y: 52 },
+      ]),
+      tallPath([
+        { x: 208, y: 236 },
+        { x: 430, y: 340 },
+        { x: 610, y: 445 },
+        { x: 808, y: 510 },
+        { x: 1020, y: 488 },
+        { x: 1200, y: 352 },
+        { x: 1430, y: 338 },
+        { x: 1660, y: 392 },
+        { x: 1888, y: 424 },
+        { x: 2148, y: 406 },
+        { x: 2355, y: 278 },
+        { x: 2526, y: 52 },
+      ]),
     ],
-    towerSlots: [
-      { x: 700, y: 180 },
-      { x: 986, y: 168 },
-      { x: 660, y: 370 },
-      { x: 1030, y: 480 },
-      { x: 1260, y: 555 },
-      { x: 1450, y: 220 },
-      { x: 1580, y: 446 },
-      { x: 1840, y: 260 },
-      { x: 1988, y: 464 },
-      { x: 2200, y: 438 },
-    ],
-    gate: {
-      x: 2344,
-      y: 106,
-      width: 64,
-      height: 170,
+    towerSlots: tallPath([
+      { x: 650, y: 96 },
+      { x: 962, y: 130 },
+      { x: 926, y: 382 },
+      { x: 1328, y: 294 },
+      { x: 1190, y: 632 },
+      { x: 1514, y: 42 },
+      { x: 1510, y: 570 },
+      { x: 1814, y: 408 },
+      { x: 2130, y: 505 },
+      { x: 2322, y: 410 },
+    ]),
+    gate: tallGate({
+      x: 2488,
+      y: 0,
+      width: 72,
+      height: 120,
       maxHp: 900,
-    },
-    startingUnit: { x: 1040, y: 270 },
+    }),
+    startingUnit: tallPoint({ x: 902, y: 224 }),
   },
   nightBridges: {
     name: "Night Bridges",
     background: "/assets/concepts/citadel-night-bridges-map.png",
     width: 2560,
-    path: [
-      { x: 92, y: 174 },
-      { x: 242, y: 250 },
-      { x: 380, y: 376 },
-      { x: 542, y: 324 },
-      { x: 724, y: 285 },
-      { x: 930, y: 332 },
-      { x: 1140, y: 358 },
-      { x: 1340, y: 308 },
-      { x: 1560, y: 308 },
-      { x: 1780, y: 342 },
-      { x: 2040, y: 318 },
-      { x: 2380, y: 188 },
-    ],
+    height: TALL_MAP_HEIGHT,
+    path: tallPath([
+      { x: 210, y: 282 },
+      { x: 330, y: 346 },
+      { x: 560, y: 356 },
+      { x: 802, y: 342 },
+      { x: 1032, y: 370 },
+      { x: 1178, y: 448 },
+      { x: 1395, y: 300 },
+      { x: 1610, y: 330 },
+      { x: 1830, y: 378 },
+      { x: 2040, y: 372 },
+      { x: 2240, y: 438 },
+      { x: 2520, y: 560 },
+    ]),
     paths: [
-      [
-        { x: 92, y: 174 },
-        { x: 242, y: 250 },
-        { x: 380, y: 376 },
-        { x: 542, y: 324 },
-        { x: 724, y: 285 },
-        { x: 930, y: 332 },
-        { x: 1140, y: 358 },
-        { x: 1340, y: 308 },
-        { x: 1560, y: 308 },
-        { x: 1780, y: 342 },
-        { x: 2040, y: 318 },
-        { x: 2380, y: 188 },
-      ],
-      [
-        { x: 92, y: 498 },
-        { x: 230, y: 430 },
-        { x: 380, y: 376 },
-        { x: 542, y: 324 },
-        { x: 724, y: 285 },
-        { x: 930, y: 332 },
-        { x: 1140, y: 358 },
-        { x: 1340, y: 308 },
-        { x: 1560, y: 308 },
-        { x: 1780, y: 342 },
-        { x: 2040, y: 318 },
-        { x: 2380, y: 188 },
-      ],
-      [
-        { x: 1060, y: 610 },
-        { x: 1182, y: 540 },
-        { x: 1340, y: 442 },
-        { x: 1538, y: 388 },
-        { x: 1780, y: 342 },
-        { x: 2040, y: 318 },
-        { x: 2380, y: 188 },
-      ],
+      tallPath([
+        { x: 210, y: 282 },
+        { x: 330, y: 346 },
+        { x: 560, y: 356 },
+        { x: 802, y: 342 },
+        { x: 1032, y: 370 },
+        { x: 1178, y: 448 },
+        { x: 1395, y: 300 },
+        { x: 1610, y: 330 },
+        { x: 1830, y: 378 },
+        { x: 2040, y: 372 },
+        { x: 2240, y: 438 },
+        { x: 2520, y: 560 },
+      ]),
+      tallPath([
+        { x: 150, y: 704 },
+        { x: 280, y: 610 },
+        { x: 510, y: 535 },
+        { x: 760, y: 565 },
+        { x: 982, y: 610 },
+        { x: 1178, y: 448 },
+        { x: 1395, y: 300 },
+        { x: 1610, y: 330 },
+        { x: 1830, y: 378 },
+        { x: 2040, y: 372 },
+        { x: 2240, y: 438 },
+        { x: 2520, y: 560 },
+      ]),
+      tallPath([
+        { x: 88, y: 0 },
+        { x: 320, y: 92 },
+        { x: 520, y: 150 },
+        { x: 780, y: 180 },
+        { x: 1032, y: 370 },
+        { x: 1178, y: 448 },
+        { x: 1395, y: 300 },
+        { x: 1610, y: 330 },
+        { x: 1830, y: 378 },
+        { x: 2040, y: 372 },
+        { x: 2240, y: 438 },
+        { x: 2520, y: 560 },
+      ]),
     ],
-    towerSlots: [
-      { x: 430, y: 472 },
-      { x: 560, y: 604 },
-      { x: 620, y: 186 },
-      { x: 826, y: 350 },
-      { x: 990, y: 164 },
-      { x: 1130, y: 464 },
-      { x: 1392, y: 242 },
-      { x: 1588, y: 452 },
-      { x: 1846, y: 432 },
-      { x: 2120, y: 520 },
-    ],
-    gate: {
-      x: 2330,
-      y: 88,
-      width: 76,
-      height: 190,
+    towerSlots: tallPath([
+      { x: 322, y: 296 },
+      { x: 600, y: 598 },
+      { x: 650, y: 170 },
+      { x: 866, y: 304 },
+      { x: 975, y: 70 },
+      { x: 1284, y: 608 },
+      { x: 1320, y: 112 },
+      { x: 1620, y: 526 },
+      { x: 1980, y: 275 },
+      { x: 2190, y: 530 },
+    ]),
+    gate: tallGate({
+      x: 2482,
+      y: 494,
+      width: 78,
+      height: 132,
       maxHp: 900,
-    },
-    startingUnit: { x: 930, y: 332 },
+    }),
+    startingUnit: tallPoint({ x: 1178, y: 448 }),
   },
 };
+
+const clonePoint = (point: Point): Point => ({ x: point.x, y: point.y });
+const clonePathPoints = (path: Point[]) => path.map(clonePoint);
+
+function applyMapLayoutOverrides(maps: Record<MapId, MapDefinition>, overrides: Partial<Record<MapId, MapLayoutOverride>>) {
+  for (const [id, override] of Object.entries(overrides) as [MapId, MapLayoutOverride][]) {
+    const map = maps[id];
+    if (!map || !override) {
+      continue;
+    }
+
+    if (override.sidePaths) {
+      map.sidePaths = override.sidePaths.map(clonePathPoints);
+    }
+
+    if (override.paths) {
+      map.paths = override.paths.map(clonePathPoints);
+      map.path = map.paths[0] ?? map.path;
+    } else if (override.path) {
+      map.path = clonePathPoints(override.path);
+      if (map.paths) {
+        map.paths = [map.path, ...map.paths.slice(1).map(clonePathPoints)];
+      }
+    }
+
+    if (override.towerSlots) {
+      map.towerSlots = override.towerSlots.map(clonePoint);
+    }
+    if (override.gate) {
+      map.gate = { ...map.gate, ...override.gate };
+    }
+    if (override.startingUnit) {
+      map.startingUnit = clonePoint(override.startingUnit);
+    }
+  }
+}
+
+applyMapLayoutOverrides(MAPS, MAP_LAYOUT_OVERRIDES);
 
 export const PATH: Point[] = MAPS.citadel.path;
 export const PATH_DEPLOY_TOLERANCE = 64;
@@ -422,6 +489,106 @@ export const HOST_TYPES = {
     defense: 0.9,
     tint: 0xffe1ad,
   },
+  raphael: {
+    name: "Raphael",
+    role: "Special Angel - healer",
+    cost: 150,
+    description: "A named healer angel. One-person unit that builds tension while restoring allied hosts.",
+    speed: 120,
+    attackRange: 0,
+    engagementRange: 240,
+    attackCooldownMs: 760,
+    memberCount: 1,
+    memberHp: 420,
+    memberMp: 160,
+    damagePerMember: 0,
+    healPerMember: 30,
+    defense: 0.62,
+    tint: 0xb7ffe6,
+    special: true,
+    specialAbility: "healer",
+    maxPerBattle: 1,
+  },
+  zadkiel: {
+    name: "Zadkiel",
+    role: "Special Angel - corruption healer",
+    cost: 145,
+    description: "A named angel who heals corruption from nearby hosts and weakens demon control.",
+    speed: 122,
+    attackRange: 0,
+    engagementRange: 245,
+    attackCooldownMs: 820,
+    memberCount: 1,
+    memberHp: 390,
+    memberMp: 175,
+    damagePerMember: 0,
+    healPerMember: 14,
+    defense: 0.66,
+    tint: 0xd9c4ff,
+    special: true,
+    specialAbility: "cleanse",
+    maxPerBattle: 1,
+  },
+  gagiel: {
+    name: "Gagiel",
+    role: "Special Angel - waters",
+    cost: 170,
+    description: "Summons cleansing waters that wash enemies back along the path.",
+    speed: 116,
+    attackRange: 205,
+    engagementRange: 250,
+    attackCooldownMs: 920,
+    memberCount: 1,
+    memberHp: 430,
+    memberMp: 145,
+    damagePerMember: 20,
+    healPerMember: 0,
+    defense: 0.68,
+    tint: 0x8ed8ff,
+    special: true,
+    specialAbility: "washback",
+    maxPerBattle: 1,
+  },
+  jophiel: {
+    name: "Jophiel",
+    role: "Special Angel - sword",
+    cost: 205,
+    description: "Wields a sword that can release judgment across the entire board.",
+    speed: 126,
+    attackRange: 190,
+    engagementRange: 235,
+    attackCooldownMs: 720,
+    memberCount: 1,
+    memberHp: 460,
+    memberMp: 135,
+    damagePerMember: 27,
+    healPerMember: 0,
+    defense: 0.58,
+    tint: 0xffe1ad,
+    special: true,
+    specialAbility: "boardSlash",
+    maxPerBattle: 1,
+  },
+  michael: {
+    name: "Michael",
+    role: "Special Angel - archangel",
+    cost: 275,
+    description: "The most powerful angel. A one-person unit with devastating radiant pressure.",
+    speed: 132,
+    attackRange: 245,
+    engagementRange: 285,
+    attackCooldownMs: 560,
+    memberCount: 1,
+    memberHp: 620,
+    memberMp: 180,
+    damagePerMember: 42,
+    healPerMember: 0,
+    defense: 0.44,
+    tint: 0xfff2bd,
+    special: true,
+    specialAbility: "archangel",
+    maxPerBattle: 1,
+  },
 } as const;
 
 export type HostKind = keyof typeof HOST_TYPES;
@@ -492,6 +659,7 @@ export const ENEMY_TYPES = {
       damage: 18,
       speed: 430,
       color: 0xa05cff,
+      corrupts: true,
     },
     walkAnimation: {
       cycleMs: 1200,
@@ -543,54 +711,274 @@ export const ENEMY_TYPES = {
       driftPx: 2,
     },
   },
+  obsidianBulwark: {
+    name: "Obsidian Bulwark",
+    texture: "/assets/sprites/enemies/siege-brute.png",
+    hp: 255,
+    speed: 27,
+    gateDamagePerSecond: 62,
+    energyReward: 64,
+    scale: 0.19,
+    walkAnimation: {
+      cycleMs: 1240,
+      bobPx: 3,
+      swayDeg: 1.4,
+      scaleX: 0.016,
+      scaleY: 0.035,
+      driftPx: 1,
+    },
+  },
+  voidSeraph: {
+    name: "Void Seraph",
+    texture: "/assets/sprites/enemies/flying-harrier.png",
+    hp: 142,
+    speed: 91,
+    gateDamagePerSecond: 31,
+    energyReward: 48,
+    scale: 0.18,
+    projectile: {
+      range: 265,
+      cooldownMs: 1120,
+      damage: 22,
+      speed: 560,
+      color: 0x6f77ff,
+    },
+    walkAnimation: {
+      cycleMs: 390,
+      bobPx: 22,
+      swayDeg: 10,
+      scaleX: 0.07,
+      scaleY: 0.04,
+      driftPx: 10,
+    },
+  },
+  abyssalHierophant: {
+    name: "Abyssal Hierophant",
+    texture: "/assets/sprites/enemies/dark-archangel.png",
+    hp: 420,
+    speed: 25,
+    gateDamagePerSecond: 78,
+    energyReward: 155,
+    scale: 0.22,
+    projectile: {
+      range: 320,
+      cooldownMs: 1280,
+      damage: 36,
+      speed: 500,
+      color: 0xd94cff,
+    },
+    walkAnimation: {
+      cycleMs: 1620,
+      bobPx: 4,
+      swayDeg: 1.2,
+      scaleX: 0.012,
+      scaleY: 0.02,
+      driftPx: 2,
+    },
+  },
 } as const;
 
 export type EnemyKind = keyof typeof ENEMY_TYPES;
 
-export const WAVES = [
-  {
-    name: "Fallen Probe",
-    intervalMs: 1050,
-    enemies: [
-      "corruptedScout",
-      "corruptedScout",
-      "fallenSwordsman",
-      "corruptedScout",
-      "fallenSwordsman",
-      "flyingHarrier",
-    ] satisfies EnemyKind[],
-  },
-  {
-    name: "Broken Choir",
-    intervalMs: 900,
-    enemies: [
-      "fallenSwordsman",
-      "corruptedScout",
-      "shadowCaster",
-      "fallenSwordsman",
-      "flyingHarrier",
-      "fallenSwordsman",
-      "shadowCaster",
-      "siegeBrute",
-    ] satisfies EnemyKind[],
-  },
-  {
-    name: "Siege of Thorns",
-    intervalMs: 780,
-    enemies: [
-      "siegeBrute",
-      "fallenSwordsman",
-      "shadowCaster",
-      "flyingHarrier",
-      "siegeBrute",
-      "fallenSwordsman",
-      "shadowCaster",
-      "flyingHarrier",
-      "siegeBrute",
-      "darkArchangel",
-    ] satisfies EnemyKind[],
-  },
-] as const;
+export type WaveDefinition = {
+  name: string;
+  intervalMs: number;
+  enemies: EnemyKind[];
+};
+
+export const MAP_WAVES = {
+  citadel: [
+    {
+      name: "First Footfalls",
+      intervalMs: 1450,
+      enemies: ["corruptedScout", "corruptedScout", "corruptedScout"],
+    },
+    {
+      name: "Fallen Drill",
+      intervalMs: 1220,
+      enemies: ["corruptedScout", "fallenSwordsman", "corruptedScout", "fallenSwordsman"],
+    },
+    {
+      name: "Gatebreakers",
+      intervalMs: 1040,
+      enemies: [
+        "fallenSwordsman",
+        "corruptedScout",
+        "fallenSwordsman",
+        "corruptedScout",
+        "fallenSwordsman",
+        "siegeBrute",
+      ],
+    },
+  ],
+  skybridge: [
+    {
+      name: "Bridge Stalkers",
+      intervalMs: 1030,
+      enemies: [
+        "corruptedScout",
+        "flyingHarrier",
+        "fallenSwordsman",
+        "corruptedScout",
+        "flyingHarrier",
+        "fallenSwordsman",
+      ],
+    },
+    {
+      name: "Broken Choir",
+      intervalMs: 900,
+      enemies: [
+        "fallenSwordsman",
+        "shadowCaster",
+        "corruptedScout",
+        "fallenSwordsman",
+        "shadowCaster",
+        "flyingHarrier",
+        "fallenSwordsman",
+      ],
+    },
+    {
+      name: "Caster Screen",
+      intervalMs: 820,
+      enemies: [
+        "shadowCaster",
+        "fallenSwordsman",
+        "flyingHarrier",
+        "shadowCaster",
+        "fallenSwordsman",
+        "siegeBrute",
+        "shadowCaster",
+      ],
+    },
+  ],
+  moonGarden: [
+    {
+      name: "Moonlit Harriers",
+      intervalMs: 900,
+      enemies: [
+        "flyingHarrier",
+        "corruptedScout",
+        "flyingHarrier",
+        "fallenSwordsman",
+        "flyingHarrier",
+        "shadowCaster",
+        "flyingHarrier",
+      ],
+    },
+    {
+      name: "Winged Lances",
+      intervalMs: 790,
+      enemies: [
+        "fallenSwordsman",
+        "flyingHarrier",
+        "shadowCaster",
+        "flyingHarrier",
+        "siegeBrute",
+        "flyingHarrier",
+        "shadowCaster",
+        "fallenSwordsman",
+      ],
+    },
+    {
+      name: "Dark Archangel",
+      intervalMs: 740,
+      enemies: [
+        "siegeBrute",
+        "shadowCaster",
+        "flyingHarrier",
+        "fallenSwordsman",
+        "shadowCaster",
+        "flyingHarrier",
+        "darkArchangel",
+      ],
+    },
+  ],
+  sunreach: [
+    {
+      name: "Siege of Thorns",
+      intervalMs: 820,
+      enemies: [
+        "siegeBrute",
+        "fallenSwordsman",
+        "shadowCaster",
+        "flyingHarrier",
+        "siegeBrute",
+        "fallenSwordsman",
+        "shadowCaster",
+        "obsidianBulwark",
+      ],
+    },
+    {
+      name: "Obsidian Push",
+      intervalMs: 700,
+      enemies: [
+        "fallenSwordsman",
+        "obsidianBulwark",
+        "shadowCaster",
+        "siegeBrute",
+        "flyingHarrier",
+        "obsidianBulwark",
+        "darkArchangel",
+      ],
+    },
+    {
+      name: "Burning Rampart",
+      intervalMs: 620,
+      enemies: [
+        "siegeBrute",
+        "obsidianBulwark",
+        "shadowCaster",
+        "fallenSwordsman",
+        "obsidianBulwark",
+        "darkArchangel",
+        "obsidianBulwark",
+      ],
+    },
+  ],
+  nightBridges: [
+    {
+      name: "Void Wing",
+      intervalMs: 700,
+      enemies: [
+        "voidSeraph",
+        "flyingHarrier",
+        "shadowCaster",
+        "voidSeraph",
+        "siegeBrute",
+        "voidSeraph",
+        "darkArchangel",
+      ],
+    },
+    {
+      name: "Abyssal Procession",
+      intervalMs: 620,
+      enemies: [
+        "obsidianBulwark",
+        "shadowCaster",
+        "voidSeraph",
+        "darkArchangel",
+        "obsidianBulwark",
+        "abyssalHierophant",
+      ],
+    },
+    {
+      name: "The Last Gate",
+      intervalMs: 540,
+      enemies: [
+        "voidSeraph",
+        "obsidianBulwark",
+        "shadowCaster",
+        "darkArchangel",
+        "voidSeraph",
+        "abyssalHierophant",
+        "obsidianBulwark",
+        "abyssalHierophant",
+      ],
+    },
+  ],
+} satisfies Record<MapId, WaveDefinition[]>;
+
+export const WAVES = MAP_WAVES.citadel;
 
 export const TOWER_TYPES = {
   lightspire: {
@@ -599,6 +987,7 @@ export const TOWER_TYPES = {
     cost: 90,
     description: "Fast, low-damage holy bolts. Best against scouts and harriers.",
     behavior: "projectile",
+    innerRange: 0,
     range: 250,
     damage: 22,
     cooldownMs: 360,
@@ -617,6 +1006,7 @@ export const TOWER_TYPES = {
     cost: 145,
     description: "Channels a heavy judgment beam. Good against brutes and boss enemies.",
     behavior: "beam",
+    innerRange: 70,
     range: 230,
     damage: 84,
     cooldownMs: 1350,
@@ -637,6 +1027,7 @@ export const TOWER_TYPES = {
     cost: 125,
     description: "Emits periodic shockwaves around itself, damaging clustered enemies.",
     behavior: "shockwave",
+    innerRange: 0,
     range: 205,
     damage: 38,
     cooldownMs: 1800,
@@ -655,6 +1046,7 @@ export const TOWER_TYPES = {
     cost: 110,
     description: "Support tower that restores HP and MP to nearby angel hosts.",
     behavior: "support",
+    innerRange: 0,
     range: 210,
     damage: 0,
     cooldownMs: 700,
@@ -673,6 +1065,7 @@ export const TOWER_TYPES = {
     cost: 150,
     description: "Slow, powerful burning shockwaves in a shorter radius.",
     behavior: "shockwave",
+    innerRange: 0,
     range: 190,
     damage: 52,
     cooldownMs: 2100,
@@ -691,6 +1084,7 @@ export const TOWER_TYPES = {
     cost: 135,
     description: "Longer-range crystal shots with strong sustained pressure.",
     behavior: "projectile",
+    innerRange: 85,
     range: 270,
     damage: 44,
     cooldownMs: 860,
@@ -709,6 +1103,7 @@ export const TOWER_TYPES = {
     cost: 140,
     description: "Radiates a time-slowing field, reducing enemy movement and corrupted-host attack tempo nearby.",
     behavior: "slow",
+    innerRange: 35,
     range: 225,
     damage: 0,
     cooldownMs: 1050,
@@ -725,6 +1120,92 @@ export const TOWER_TYPES = {
 } as const;
 
 export type TowerKind = keyof typeof TOWER_TYPES;
+
+export type CampaignChapter = {
+  index: number;
+  title: string;
+  story: string;
+  storyImage: string;
+  unlocks: {
+    towers: TowerKind[];
+    hosts: HostKind[];
+    ability: boolean;
+    enemies: EnemyKind[];
+    notes: string[];
+  };
+};
+
+export const CAMPAIGN_CHAPTERS = {
+  citadel: {
+    index: 0,
+    title: "Chapter I: The First Breach",
+    story: "The first host reaches the outer gate with only basic light and resonance.",
+    storyImage: "/assets/story/campaign-awakening.png",
+    unlocks: {
+      towers: ["lightspire", "harmonicBell"],
+      hosts: ["host", "raphael", "zadkiel", "gagiel", "jophiel", "michael"],
+      ability: false,
+      enemies: ["corruptedScout", "fallenSwordsman", "siegeBrute"],
+      notes: [
+        "Lightspire handles scouts.",
+        "Harmonic Bell punishes clustered swordsmen.",
+        "Named special angels can each deploy once per battle and build tension while acting.",
+      ],
+    },
+  },
+  skybridge: {
+    index: 1,
+    title: "Chapter II: The Sanctuary Choir",
+    story: "The skybridge sanctuaries answer with a new healing host.",
+    storyImage: "/assets/story/campaign-sanctuary.png",
+    unlocks: {
+      towers: [],
+      hosts: ["healer"],
+      ability: false,
+      enemies: ["shadowCaster"],
+      notes: ["Healers keep damaged hosts alive while Shadow Casters test your support placement."],
+    },
+  },
+  moonGarden: {
+    index: 2,
+    title: "Chapter III: Purification Rite",
+    story: "The moon garden teaches the hosts how to reclaim corrupted souls.",
+    storyImage: "/assets/story/campaign-sanctuary.png",
+    unlocks: {
+      towers: [],
+      hosts: [],
+      ability: true,
+      enemies: ["flyingHarrier"],
+      notes: ["Purify is expensive, but it can reverse a dangerous corruption swing."],
+    },
+  },
+  sunreach: {
+    index: 3,
+    title: "Chapter IV: Watchers of Sunreach",
+    story: "The causeway opens long sightlines for the archer hosts.",
+    storyImage: "/assets/story/campaign-final-armory.png",
+    unlocks: {
+      towers: [],
+      hosts: ["archers"],
+      ability: false,
+      enemies: ["darkArchangel"],
+      notes: ["Archers answer flyers and dark archangels before they reach the gate."],
+    },
+  },
+  nightBridges: {
+    index: 4,
+    title: "Chapter V: Judgment Lens",
+    story: "The final bridges reveal a tower built for elite targets.",
+    storyImage: "/assets/story/campaign-final-armory.png",
+    unlocks: {
+      towers: ["judgmentLens"],
+      hosts: [],
+      ability: false,
+      enemies: ["obsidianBulwark"],
+      notes: ["Judgment Lens beams are the clean answer to armored elites."],
+    },
+  },
+} satisfies Record<MapId, CampaignChapter>;
 
 export const PEDESTAL_RADIUS = 58;
 

@@ -145,6 +145,25 @@ export class AudioDirector {
     this.tone(midiToHz(67), { start: now + 0.03, duration: 1.1, attack: 0.015, volume: 0.035 });
   }
 
+  playTensionBurst() {
+    if (!this.canPlaySfx("tension-burst", 450)) {
+      return;
+    }
+
+    const now = this.context!.currentTime;
+    [55, 62, 67, 74, 79, 86].forEach((note, index) => {
+      this.tone(midiToHz(note), {
+        start: now + index * 0.045,
+        duration: 1.55,
+        attack: 0.006,
+        volume: 0.058,
+        type: index % 2 === 0 ? "triangle" : "sine",
+      });
+    });
+    this.sweep(160, 980, now, 0.9, "triangle", 0.085);
+    this.noise(0.28, now + 0.05, 0.024, 1600);
+  }
+
   playEnemyDefeated(count = 1) {
     if (!this.canPlaySfx("enemy-defeated", 120)) {
       return;

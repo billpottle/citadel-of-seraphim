@@ -1,0 +1,19 @@
+{
+  "name": "Citadel of the Seraphim",
+  "short_name": "Seraphim",
+  "icons": [
+    {
+      "src": "/favicon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml"
+    },
+    {
+      "src": "/apple-touch-icon.png",
+      "sizes": "512x512",
+      "type": "image/png"
+    }
+  ],
+  "theme_color": "#0a0d14",
+  "background_color": "#0a0d14",
+  "display": "fullscreen"
+}

@@ -6,9 +6,20 @@ export type Point = {
   y: number;
 };
 
+export type AutoMoveMode =
+  | "manual"
+  | "gate"
+  | "nearestEnemy"
+  | "strongestEnemy"
+  | "weakestEnemy"
+  | "nearestHealer"
+  | "woundedAlly"
+  | "portal";
+
 export type HudRefs = {
   wave: HTMLElement | null;
   gate: HTMLElement | null;
+  gateHpFill: HTMLElement | null;
   enemies: HTMLElement | null;
   energy: HTMLElement | null;
   units: HTMLElement | null;
@@ -17,25 +28,85 @@ export type HudRefs = {
   unitDetail: HTMLElement | null;
   unitHp: HTMLElement | null;
   unitMp: HTMLElement | null;
+  autoMoveSelect: HTMLSelectElement | null;
   difficultySelect: HTMLSelectElement | null;
   battleSpeedSelect: HTMLSelectElement | null;
+  pauseButton: HTMLButtonElement | null;
+  waveDirectorSelect: HTMLSelectElement | null;
+  waveLimitSelect: HTMLSelectElement | null;
   towersPanel: HTMLButtonElement | null;
   hostsPanel: HTMLButtonElement | null;
   abilityPanel: HTMLButtonElement | null;
+  buildOverlay: HTMLElement | null;
+  buildOverlayTitle: HTMLElement | null;
+  buildOverlayCloseButton: HTMLButtonElement | null;
   buildList: HTMLElement | null;
   buildDetail: HTMLElement | null;
+  selectedOverlay: HTMLElement | null;
+  selectedOverlayCloseButton: HTMLButtonElement | null;
+  selectedQuick: HTMLElement | null;
+  selectedCurrentButton: HTMLButtonElement | null;
+  selectedCurrentIcon: HTMLElement | null;
+  selectedCurrentLabel: HTMLElement | null;
+  sellSelectedButton: HTMLButtonElement | null;
+  selectedMoveField: HTMLElement | null;
+  tensionBurstButton: HTMLButtonElement | null;
+  towerRangeButton: HTMLButtonElement | null;
   mapSelect: HTMLSelectElement | null;
   scrollLeftButton: HTMLButtonElement | null;
   scrollRightButton: HTMLButtonElement | null;
+  scrollUpButton: HTMLButtonElement | null;
+  scrollDownButton: HTMLButtonElement | null;
   mapEditButton: HTMLButtonElement | null;
   mapEditorPanel: HTMLElement | null;
   mapEditTool: HTMLSelectElement | null;
+  mapEditTowerKind: HTMLSelectElement | null;
   addPathPointButton: HTMLButtonElement | null;
+  addSidePathButton: HTMLButtonElement | null;
+  addEditorTowerButton: HTMLButtonElement | null;
   removePathPointButton: HTMLButtonElement | null;
   copyMapButton: HTMLButtonElement | null;
   resetMapButton: HTMLButtonElement | null;
+  guideButton: HTMLButtonElement | null;
   audioButton: HTMLButtonElement | null;
+  abandonBattleButton: HTMLButtonElement | null;
   restartButton: HTMLButtonElement | null;
+  settingsToggleButton: HTMLButtonElement | null;
+  settingsMenu: HTMLElement | null;
+  menuOverlay: HTMLElement | null;
+  storyIntroOverlay: HTMLElement | null;
+  storyIntroTrack: HTMLElement | null;
+  storyIntroProgress: HTMLElement | null;
+  storyIntroSkipButton: HTMLButtonElement | null;
+  storyIntroStartButton: HTMLButtonElement | null;
+  victoryOverlay: HTMLElement | null;
+  victoryNextButton: HTMLButtonElement | null;
+  victoryArmoryButton: HTMLButtonElement | null;
+  armoryOverlay: HTMLElement | null;
+  armoryTitle: HTMLElement | null;
+  armoryBody: HTMLElement | null;
+  armoryStartButton: HTMLButtonElement | null;
+  armoryLoadButton: HTMLButtonElement | null;
+  armoryGuideButton: HTMLButtonElement | null;
+  victorySummary: HTMLElement | null;
+  menuStoryImage: HTMLImageElement | null;
+  menuTitle: HTMLElement | null;
+  menuBody: HTMLElement | null;
+  menuUnlocks: HTMLElement | null;
+  campaignMap: HTMLElement | null;
+  menuLobby: HTMLElement | null;
+  menuTutorial: HTMLElement | null;
+  menuMapSelect: HTMLSelectElement | null;
+  menuDifficultySelect: HTMLSelectElement | null;
+  newCampaignButton: HTMLButtonElement | null;
+  loadCampaignButton: HTMLButtonElement | null;
+  skipMenuButton: HTMLButtonElement | null;
+  menuGuideButton: HTMLButtonElement | null;
+  resumeBattleButton: HTMLButtonElement | null;
+  guideOverlay: HTMLElement | null;
+  guideCloseButton: HTMLButtonElement | null;
+  guideTabs: HTMLElement | null;
+  guideContent: HTMLElement | null;
 };
 
 export type UnitMember = {
@@ -57,6 +128,8 @@ export type UnitMember = {
 export type Unit = {
   id: string;
   kind: string;
+  special: boolean;
+  specialAbility?: "healer" | "cleanse" | "washback" | "boardSlash" | "archangel";
   team: "angel" | "demon";
   baseName: string;
   name: string;
@@ -64,6 +137,8 @@ export type Unit = {
   y: number;
   facingX: number;
   destination: Point | null;
+  destinationPath: { path: Point[]; targetProgress: number } | null;
+  pathPosition: { path: Point[]; progress: number } | null;
   speed: number;
   attackRange: number;
   engagementRange: number;
@@ -74,6 +149,11 @@ export type Unit = {
   defense: number;
   tint: number;
   corruption: number;
+  tension: number;
+  maxTension: number;
+  tensionSlowMs?: number;
+  autoMoveMode: AutoMoveMode;
+  autoMoveRetargetMs: number;
   selected: boolean;
   pose: AnimationKey;
   poseTimerMs: number;
@@ -97,6 +177,7 @@ export type Enemy = {
   facingX: number;
   hp: number;
   maxHp: number;
+  tensionSlowMs?: number;
   speed: number;
   gateDamagePerSecond: number;
   pathId: number;
@@ -112,6 +193,7 @@ export type Tower = {
   name: string;
   kind: string;
   slotIndex: number;
+  level: number;
   hp: number;
   maxHp: number;
   selected: boolean;
@@ -119,6 +201,7 @@ export type Tower = {
   behavior: string;
   x: number;
   y: number;
+  innerRange: number;
   range: number;
   damage: number;
   beamDurationMs?: number;
@@ -131,6 +214,9 @@ export type Tower = {
   baseScale: number;
   animationTimeMs: number;
   firePulseMs: number;
+  tension: number;
+  maxTension: number;
+  showRange: boolean;
   container: Container;
   sprite: Sprite;
   selectionRing: Graphics;
@@ -149,6 +235,8 @@ export type Projectile = {
   target?: Enemy;
   targetUnit?: Unit;
   targetTower?: Tower;
+  sourceTower?: Tower;
+  corrupts?: boolean;
   targetOffset?: Point;
   graphic: Graphics;
 };

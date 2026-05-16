@@ -2,124 +2,329 @@
 <html lang="en">
   <head>
     <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+    <meta name="theme-color" content="#0a0d14" />
+    <meta name="apple-mobile-web-app-title" content="Seraphim" />
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+    <link rel="apple-touch-icon" sizes="512x512" href="/apple-touch-icon.png" />
+    <link rel="manifest" href="/site.webmanifest" />
     <title>Citadel of the Seraphim</title>
   </head>
   <body>
     <div id="shell">
-      <aside id="hud" aria-label="Game status">
-        <div class="brand">
-          <span class="brand-mark"></span>
-          <div>
-            <p class="eyebrow">Citadel Defense</p>
-            <h1>Citadel of the Seraphim</h1>
-          </div>
-        </div>
-
-        <section class="resource-panel" aria-label="Energy">
-          <span class="energy-orb" aria-hidden="true"></span>
-          <div>
-            <p>Energy</p>
-            <strong id="energy-readout">120</strong>
-          </div>
-        </section>
-
-        <section class="panel">
-          <h2>Battle</h2>
-          <dl class="stats">
-            <div>
-              <dt>Wave</dt>
-              <dd id="wave-readout">1 / 3</dd>
+      <main id="game-wrap">
+        <div id="game-root" aria-label="Citadel battlefield"></div>
+        <aside id="hud" aria-label="Game status">
+          <div class="top-hud-bar">
+            <div class="brand compact-brand">
+              <span class="brand-mark"></span>
+              <div>
+                <p class="eyebrow">Citadel Defense</p>
+                <h1>Citadel of the Seraphim</h1>
+              </div>
             </div>
-            <div>
-              <dt>Gate</dt>
-              <dd id="gate-readout">100%</dd>
-            </div>
-            <div>
-              <dt>Enemies</dt>
-              <dd id="enemy-readout">0</dd>
-            </div>
-            <div>
-              <dt>Units</dt>
-              <dd id="unit-count-readout">1</dd>
-            </div>
-            <div>
-              <dt>Status</dt>
-              <dd id="status-readout">Hold the lane</dd>
-            </div>
-          </dl>
-          <div class="battle-controls" aria-label="Battle settings">
-            <label class="control-field">
-              <span>Mode</span>
-              <select id="difficulty-select" aria-label="Difficulty"></select>
-            </label>
-            <label class="control-field">
+            <dl class="top-stats" aria-label="Battle status">
+              <div>
+                <dt>Wave</dt>
+                <dd id="wave-readout">1 / 3</dd>
+              </div>
+              <div>
+                <dt>Enemies</dt>
+                <dd id="enemy-readout">0</dd>
+              </div>
+              <div>
+                <dt>Units</dt>
+                <dd id="unit-count-readout">1</dd>
+              </div>
+              <div class="status-stat">
+                <dt>Status</dt>
+                <dd id="status-readout">Hold the lane</dd>
+              </div>
+            </dl>
+            <section id="selected-overlay" class="hud-overlay selected-overlay" hidden>
+              <header class="overlay-header">
+                <h2>Selected</h2>
+                <button id="selected-overlay-close-button" class="overlay-close-button" type="button" aria-label="Close selected panel" title="Close">X</button>
+              </header>
+              <div id="unit-card" class="unit-card">
+                <strong id="selected-unit-name">Alizel's Host</strong>
+                <div id="selected-unit-detail" class="selected-detail">Click the squad, then click any point on the path.</div>
+                <div class="meter" aria-hidden="true">
+                  <span id="unit-hp-meter"></span>
+                </div>
+                <div class="meter mana" aria-hidden="true">
+                  <span id="unit-mp-meter"></span>
+                </div>
+                <button id="tower-range-button" class="tower-range-button" type="button" hidden>Show Range</button>
+              </div>
+            </section>
+            <label class="control-field top-speed-field">
               <span>Speed</span>
               <select id="battle-speed-select" aria-label="Battle speed"></select>
             </label>
-          </div>
-        </section>
-
-        <section class="panel">
-          <h2>Selected</h2>
-          <div id="unit-card" class="unit-card">
-            <strong id="selected-unit-name">Alizel's Host</strong>
-            <span id="selected-unit-detail">Click the squad, then click any point on the path.</span>
-            <div class="meter" aria-hidden="true">
-              <span id="unit-hp-meter"></span>
+            <section class="gate-hp-panel" aria-label="Gate HP">
+              <div class="gate-hp-frame">
+                <span id="gate-hp-fill" class="gate-hp-fill" aria-hidden="true"></span>
+              </div>
+              <div class="gate-hp-copy">
+                <span>Gate</span>
+                <strong id="gate-readout">100%</strong>
+              </div>
+            </section>
+            <section class="resource-panel" aria-label="Energy">
+              <span class="energy-orb" aria-hidden="true"></span>
+              <div>
+                <p>Energy</p>
+                <strong id="energy-readout">120</strong>
+              </div>
+            </section>
+            <div class="top-build-actions" role="group" aria-label="Build panels">
+              <button id="towers-panel-button" class="hud-icon-button" type="button" aria-label="Towers" aria-expanded="false" title="Towers">
+                <svg viewBox="0 0 24 24" aria-hidden="true">
+                  <path d="M12 3 8 8v3l-2 2v7h12v-7l-2-2V8l-4-5Z" />
+                  <path d="M9 20v-5h6v5" />
+                </svg>
+                <span>Towers</span>
+              </button>
+              <button id="hosts-panel-button" class="hud-icon-button" type="button" aria-label="Hosts" aria-expanded="false" title="Hosts">
+                <svg viewBox="0 0 24 24" aria-hidden="true">
+                  <circle cx="12" cy="7" r="3" />
+                  <path d="M5 20c.8-4 3.2-6 7-6s6.2 2 7 6" />
+                  <path d="M4 12c1.4-.8 2.8-.8 4 0M16 12c1.2-.8 2.6-.8 4 0" />
+                </svg>
+                <span>Hosts</span>
+              </button>
+              <button id="ability-panel-button" class="hud-icon-button" type="button" aria-label="Purify" aria-expanded="false" title="Purify">
+                <svg viewBox="0 0 24 24" aria-hidden="true">
+                  <path d="M12 3 7 12l5 9 5-9-5-9Z" />
+                  <path d="M4 12h3M17 12h3M12 1v3M12 20v3" />
+                </svg>
+                <span>Purify</span>
+              </button>
             </div>
-            <div class="meter mana" aria-hidden="true">
-              <span id="unit-mp-meter"></span>
+            <section id="selected-quick" class="selected-quick" aria-label="Selected unit actions" hidden>
+              <button id="selected-current-button" class="selected-action-button selected-current-button" type="button" aria-label="Open selected details" title="Selected details">
+                <span id="selected-current-icon" class="selected-current-icon" aria-hidden="true"></span>
+                <span id="selected-current-label">Selected</span>
+              </button>
+              <button id="tension-burst-button" class="selected-action-button tension-burst-button" type="button" hidden aria-label="Release tension burst" title="Tension Burst">
+                <svg viewBox="0 0 24 24" aria-hidden="true">
+                  <path d="M13 2 4 14h7l-1 8 10-13h-7l1-7Z" />
+                </svg>
+                <span>Tension</span>
+              </button>
+              <button id="sell-selected-button" class="selected-action-button sell-selected-button" type="button" hidden aria-label="Sell selected" title="Sell selected">
+                <svg viewBox="0 0 24 24" aria-hidden="true">
+                  <path d="M6 7h12" />
+                  <path d="M9 7V4h6v3" />
+                  <path d="M8 10v9h8v-9" />
+                  <path d="M11 12v5M14 12v5" />
+                </svg>
+                <span>Sell</span>
+              </button>
+              <label id="selected-move-field" class="selected-action-field" title="Auto Move">
+                <svg viewBox="0 0 24 24" aria-hidden="true">
+                  <path d="M5 12h12" />
+                  <path d="m13 7 5 5-5 5" />
+                </svg>
+                <select id="auto-move-select" aria-label="Selected unit auto move"></select>
+              </label>
+            </section>
+            <button id="settings-toggle-button" class="settings-toggle-button" type="button" aria-label="Settings" aria-expanded="false" title="Settings">
+              <svg viewBox="0 0 24 24" aria-hidden="true">
+                <path d="M19.4 13.5c.1-.5.1-1 .1-1.5s0-1-.1-1.5l2-1.5-2-3.5-2.4 1a8.3 8.3 0 0 0-2.5-1.5L14.2 2h-4.4l-.4 2.5A8.3 8.3 0 0 0 7 6L4.6 5l-2 3.5 2 1.5a9.6 9.6 0 0 0 0 3l-2 1.5 2 3.5 2.4-1a8.3 8.3 0 0 0 2.5 1.5l.4 2.5h4.4l.4-2.5a8.3 8.3 0 0 0 2.5-1.5l2.4 1 2-3.5-2.2-1.5Z" />
+                <circle cx="12" cy="12" r="3.2" />
+              </svg>
+            </button>
+          </div>
+
+          <section id="build-overlay" class="hud-overlay build-overlay" hidden>
+            <header class="overlay-header">
+              <h2 id="build-overlay-title">Towers</h2>
+              <button id="build-overlay-close-button" class="overlay-close-button" type="button" aria-label="Close build panel" title="Close">X</button>
+            </header>
+            <div id="build-list" class="build-list"></div>
+            <div id="build-detail" class="build-detail">Choose Towers, Hosts, or Purify.</div>
+          </section>
+
+          <div id="settings-menu" class="settings-menu" hidden>
+            <button id="guide-button" type="button">Guide</button>
+            <button id="audio-button" class="audio-switch" type="button" role="switch" aria-checked="false">
+              <span class="switch-track" aria-hidden="true"><span class="switch-thumb"></span></span>
+              <span class="switch-label">Audio Off</span>
+            </button>
+            <button id="abandon-battle-button" type="button">Abandon Battle</button>
+            <label class="settings-field">
+              <span>Mode</span>
+              <select id="difficulty-select" aria-label="Difficulty"></select>
+            </label>
+            <label class="settings-field">
+              <span>Director</span>
+              <select id="wave-director-select" aria-label="Wave director"></select>
+            </label>
+            <label class="settings-field">
+              <span>Waves</span>
+              <select id="wave-limit-select" aria-label="Story wave count"></select>
+            </label>
+            <section class="settings-map-panel">
+              <h2>Map</h2>
+              <select id="map-select" aria-label="Battlefield map"></select>
+              <div class="map-scroll-row" aria-label="Map view controls">
+                <button id="scroll-up-button" type="button" aria-label="Scroll map up">^</button>
+                <button id="scroll-down-button" type="button" aria-label="Scroll map down">v</button>
+                <button id="scroll-left-button" type="button" aria-label="Scroll map left">&lt;</button>
+                <button id="scroll-right-button" type="button" aria-label="Scroll map right">&gt;</button>
+              </div>
+              <button id="map-edit-button" type="button">Map Edit</button>
+              <div id="map-editor-panel" class="map-editor-panel" hidden>
+                <select id="map-edit-tool" aria-label="Editable map layer">
+                  <option value="towerSlots">Tower Bases</option>
+                  <option value="path">Path</option>
+                  <option value="gate">Gate</option>
+                </select>
+                <div class="editor-actions">
+                  <button id="add-path-point-button" type="button">Add Point</button>
+                  <button id="add-side-path-button" type="button">Add Side Path</button>
+                  <button id="remove-path-point-button" type="button">Remove Point</button>
+                </div>
+                <label class="editor-field">
+                  <span>Tower</span>
+                  <select id="map-edit-tower-kind" aria-label="Tower to add"></select>
+                </label>
+                <button id="add-editor-tower-button" type="button">Add Tower</button>
+                <div class="editor-actions">
+                  <button id="copy-map-button" type="button">Copy Config</button>
+                  <button id="reset-map-button" type="button">Reset to Source</button>
+                </div>
+              </div>
+            </section>
+            <button id="restart-button" type="button">Restart Battle</button>
+          </div>
+        </aside>
+        <div id="game-menu" class="game-menu" data-state="start" aria-label="Game menu">
+          <div class="menu-panel">
+            <img id="menu-story-image" class="menu-story-image" src="" alt="" hidden />
+            <p class="eyebrow">Citadel Command</p>
+            <h2 id="menu-title">Citadel of the Seraphim</h2>
+            <p id="menu-body">Open the campaign map, then click an unlocked mountain level to begin a battle.</p>
+            <div id="menu-tutorial" class="menu-tutorial">
+              <strong>Training Battle</strong>
+              <span>The demons are crossing from the broken citadel toward the holy gate.</span>
+              <span>Build a Lightspire tower, then move Alizel's Host onto the road to hold the lane.</span>
+              <span>The tutorial pauses the first wave until each core action is clear.</span>
+              <span>After the wave, you will see what you earned and choose the next battle or the Armory.</span>
+            </div>
+            <div class="menu-grid" hidden>
+              <label class="control-field">
+                <span>Map</span>
+                <select id="menu-map-select" aria-label="Menu map"></select>
+              </label>
+              <label class="control-field">
+                <span>Mode</span>
+                <select id="menu-difficulty-select" aria-label="Menu difficulty"></select>
+              </label>
+            </div>
+            <div class="menu-actions">
+              <button id="new-campaign-button" type="button">New Campaign</button>
+              <button id="load-campaign-button" type="button">Load Campaign</button>
+              <button id="skip-menu-button" type="button">Skip Tutorial</button>
+              <button id="menu-guide-button" type="button">Guide</button>
+              <button id="resume-battle-button" type="button" hidden>Resume Battle</button>
             </div>
           </div>
-        </section>
-
-        <section class="panel">
-          <h2>Build</h2>
-          <div class="mode-row" role="group" aria-label="Build categories">
-            <button id="towers-panel-button" type="button">Towers</button>
-            <button id="hosts-panel-button" type="button">Hosts</button>
-            <button id="ability-panel-button" type="button">Purify</button>
-          </div>
-          <div id="build-list" class="build-list"></div>
-          <div id="build-detail" class="build-detail">Choose Towers, Hosts, or Purify.</div>
-        </section>
-
-        <section class="panel map-panel">
-          <h2>Map</h2>
-          <select id="map-select" aria-label="Battlefield map"></select>
-          <div class="map-scroll-row" aria-label="Map view controls">
-            <button id="scroll-left-button" type="button" aria-label="Scroll map left">&lt;</button>
-            <button id="scroll-right-button" type="button" aria-label="Scroll map right">&gt;</button>
-          </div>
-          <button id="map-edit-button" type="button">Map Edit</button>
-          <div id="map-editor-panel" class="map-editor-panel" hidden>
-            <select id="map-edit-tool" aria-label="Editable map layer">
-              <option value="towerSlots">Tower Bases</option>
-              <option value="path">Path</option>
-              <option value="gate">Gate</option>
-            </select>
-            <div class="editor-actions">
-              <button id="add-path-point-button" type="button">Add Point</button>
-              <button id="remove-path-point-button" type="button">Remove Point</button>
+        </div>
+        <div id="story-intro-overlay" class="story-intro-overlay" hidden aria-label="Campaign introduction">
+          <section class="story-intro-panel">
+            <div id="story-intro-track" class="story-intro-track">
+              <article class="story-intro-slide">
+                <img src="/assets/story/campaign-awakening.png" alt="" />
+                <div>
+                  <p class="eyebrow">The Breach</p>
+                  <h2>The mountain road has broken open.</h2>
+                  <p>Demons pour from the corrupted citadel and climb toward the gate, forcing the hosts to fight for every road.</p>
+                </div>
+              </article>
+              <article class="story-intro-slide">
+                <img src="/assets/story/campaign-mountain-phase1.png" alt="" />
+                <div>
+                  <p class="eyebrow">The Climb</p>
+                  <h2>Sixteen battles mark the lower mountain.</h2>
+                  <p>Some roads lead straight upward. Others branch into sidequests that can recover tower patterns and new options.</p>
+                </div>
+              </article>
+              <article class="story-intro-slide">
+                <img src="/assets/story/campaign-sanctuary.png" alt="" />
+                <div>
+                  <p class="eyebrow">The Armory</p>
+                  <h2>Radiance strengthens what survives.</h2>
+                  <p>
+                    Victories earn
+                    <span class="story-currency radiance"><span class="currency-icon" aria-hidden="true"></span><span>Radiance</span></span>,
+                    while special objectives grant
+                    <span class="story-currency core"><span class="currency-icon" aria-hidden="true"></span><span>Sanctum Cores</span></span>
+                    for rarer upgrades and evolutions.
+                  </p>
+                </div>
+              </article>
+              <article class="story-intro-slide">
+                <img src="/assets/story/campaign-final-armory.png" alt="" />
+                <div>
+                  <p class="eyebrow">The Gate</p>
+                  <h2>Hold the road until the hosts can reach the summit.</h2>
+                  <p>Towers build tension in place. Angel hosts move to danger points. Named angels can turn a battle once.</p>
+                </div>
+              </article>
             </div>
-            <div class="editor-actions">
-              <button id="copy-map-button" type="button">Copy JSON</button>
-              <button id="reset-map-button" type="button">Reset Layout</button>
+            <div class="story-intro-footer">
+              <span id="story-intro-progress" class="story-intro-progress"></span>
+              <div class="story-intro-actions">
+                <button id="story-intro-skip-button" type="button">Skip Story</button>
+                <button id="story-intro-start-button" type="button">Begin Training</button>
+              </div>
             </div>
-          </div>
-        </section>
-
-        <section class="panel compact">
-          <h2>Controls</h2>
-          <p>Select a unit and click the path to redeploy it. Build towers on empty pedestals. Defeated enemies restore energy.</p>
-          <button id="audio-button" type="button">Audio Off</button>
-          <button id="restart-button" type="button">Restart Battle</button>
-        </section>
-      </aside>
-
-      <main id="game-wrap">
-        <div id="game-root" aria-label="Citadel battlefield"></div>
+          </section>
+        </div>
+        <div id="victory-overlay" class="victory-overlay" hidden aria-label="Victory results">
+          <section class="victory-panel">
+            <div id="victory-summary" class="victory-summary" hidden></div>
+            <div class="victory-result-actions">
+              <button id="victory-next-button" type="button">Next Battle</button>
+              <button id="victory-armory-button" type="button">Go to Armory</button>
+            </div>
+          </section>
+        </div>
+        <div id="armory-overlay" class="armory-overlay" hidden aria-label="Armory">
+          <section class="armory-panel">
+            <header class="armory-header">
+              <div>
+                <p class="eyebrow">Between Battles</p>
+                <h2 id="armory-title">Armory</h2>
+                <p id="armory-body">Review towers, unlock new tools, and upgrade your defenses before the next assault.</p>
+              </div>
+              <div class="armory-actions">
+                <button id="armory-start-button" type="button">Start Battle</button>
+                <button id="armory-load-button" type="button">Load Campaign</button>
+                <button id="armory-guide-button" type="button">Guide</button>
+              </div>
+            </header>
+            <div id="menu-unlocks" class="menu-unlocks" hidden></div>
+            <div id="campaign-map" class="campaign-map"></div>
+            <div id="menu-lobby" class="menu-lobby"></div>
+          </section>
+        </div>
+        <div id="guide-overlay" class="guide-overlay" hidden aria-label="Field guide">
+          <section class="guide-panel">
+            <header class="guide-header">
+              <div>
+                <p class="eyebrow">Seraphim Archive</p>
+                <h2>Field Guide</h2>
+              </div>
+              <button id="guide-close-button" type="button">Close</button>
+            </header>
+            <nav id="guide-tabs" class="guide-tabs" aria-label="Guide sections"></nav>
+            <div id="guide-content" class="guide-content"></div>
+          </section>
+        </div>
       </main>
     </div>
 
